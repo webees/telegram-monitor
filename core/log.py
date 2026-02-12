@@ -104,10 +104,10 @@ def setup_root_logger():
         console_handler.setFormatter(console_formatter)
         root_logger.addHandler(console_handler)
         
-        log_path = Path('logs/telegram_monitor.log')
+        log_path = Path('data/log/app.log')
         log_path.parent.mkdir(parents=True, exist_ok=True)
         
-        file_handler = logging.FileHandler('logs/telegram_monitor.log', encoding='utf-8')
+        file_handler = logging.FileHandler('data/log/app.log', encoding='utf-8')
         file_handler.setLevel(logging.INFO)
         file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(file_formatter)
@@ -122,7 +122,7 @@ def init_logging():
     return setup_logger(
         name='telegram_monitor',
         level=logging.INFO,
-        log_file='logs/telegram_monitor.log'
+        log_file='data/log/app.log'
     )
 
 _init_lock = threading.Lock()

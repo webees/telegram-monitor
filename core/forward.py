@@ -28,7 +28,7 @@ class EnhancedForwardService(metaclass=Singleton):
         account: Account,
         target_ids: List[int],
         max_download_size_mb: Optional[float] = None,
-        download_folder: str = "downloads"
+        download_folder: str = "data/dl"
     ) -> Dict[int, bool]:
         results = {}
         client = account.client

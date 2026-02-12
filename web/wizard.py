@@ -312,7 +312,7 @@ class ConfigWizard(metaclass=Singleton):
                         "type": "text",
                         "label": "保存文件夹",
                         "required": False,
-                        "placeholder": "downloads/files",
+                        "placeholder": "data/dl",
                         "conditional": {"save_files": True},
                         "help": "相对于程序根目录的路径"
                     }
@@ -785,7 +785,7 @@ class ConfigWizard(metaclass=Singleton):
                         "type": "text",
                         "label": "日志文件路径",
                         "required": False,
-                        "placeholder": "logs/monitor.log",
+                        "placeholder": "data/log/app.log",
                         "help": "记录匹配消息的日志文件"
                     }
                 ],

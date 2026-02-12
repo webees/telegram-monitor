@@ -1524,7 +1524,7 @@ class WebApp:
                 
                 logs = []
                 
-                log_file = Path("logs/telegram_monitor.log")
+                log_file = Path("data/log/app.log")
                 if log_file.exists():
                     try:
                         since_time = datetime.fromisoformat(since) if since else datetime.now() - timedelta(hours=24)
@@ -1594,7 +1594,7 @@ class WebApp:
         async def download_logs(request: Request):
             user = self.get_current_user(request)
             try:
-                log_file = Path("logs/telegram_monitor.log")
+                log_file = Path("data/log/app.log")
                 if log_file.exists():
                     return FileResponse(
                         path=str(log_file),
@@ -1620,7 +1620,7 @@ class WebApp:
         async def clear_logs(request: Request):
             user = self.get_current_user(request)
             try:
-                log_file = Path("logs/telegram_monitor.log")
+                log_file = Path("data/log/app.log")
                 if log_file.exists():
                     with open(log_file, 'w', encoding='utf-8') as f:
                         f.write('')

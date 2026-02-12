@@ -61,7 +61,7 @@ class BaseMonitorConfig:
     execution_count: int = 0
     enhanced_forward: bool = False
     max_download_size_mb: Optional[float] = None
-    download_folder: str = "downloads"
+    download_folder: str = "data/dl"
     priority: int = 50
     active: bool = True
     execution_mode: str = "merge"

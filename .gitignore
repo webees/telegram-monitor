@@ -19,12 +19,10 @@ build/
 !config.example.env
 
 # Logs
-logs/
 *.log
 
-# Data directories
+# Data (configs, logs, downloads)
 data/
-downloads/
 sessions/
 *.session
 *.session-journal

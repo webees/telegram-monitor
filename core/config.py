@@ -45,7 +45,7 @@ class Config:
     
     DATA_DIR: str = "./data"
     LOGS_DIR: str = "./logs"
-    DOWNLOADS_DIR: str = "./downloads"
+    DOWNLOADS_DIR: str = "./data/dl"
     
     
     def __init__(self):
