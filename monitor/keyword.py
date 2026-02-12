@@ -27,7 +27,7 @@ class KeywordMonitor(BaseMonitor):
         
         self._lower_keyword = config.keyword.lower()
     
-    async def _match_condition(self, message_event: MessageEvent, account: Account) -> bool:
+    async def _match(self, message_event: MessageEvent, account: Account) -> bool:
         message = message_event.message
         
         if not message.text:
@@ -67,17 +67,17 @@ class KeywordMonitor(BaseMonitor):
         
         return matched
     
-    async def _execute_custom_actions(self, message_event: MessageEvent, account: Account) -> List[str]:
+    async def _custom_actions(self, message_event: MessageEvent, account: Account) -> List[str]:
         actions_taken = []
         
         if (self.keyword_config.match_type == MatchType.REGEX and 
             self.keyword_config.regex_send_target_id):
-            await self._handle_regex_send(message_event, account)
+            await self._regex_send(message_event, account)
             actions_taken.append("处理正则匹配结果")
         
         return actions_taken
     
-    async def _handle_regex_send(self, message_event: MessageEvent, account: Account):
+    async def _regex_send(self, message_event: MessageEvent, account: Account):
         try:
             if self.keyword_config.regex_send_random_offset > 0:
                 delay = random.uniform(0, self.keyword_config.regex_send_random_offset)
@@ -102,7 +102,7 @@ class KeywordMonitor(BaseMonitor):
         except Exception as e:
             self.logger.error(f"处理正则匹配发送失败: {e}")
 
-    def get_dynamic_reply_content(self) -> List[str]:
+    def reply_content(self) -> List[str]:
         reply_content_type = 'custom'
         
         if hasattr(self.keyword_config, 'reply_content_type'):
@@ -129,7 +129,7 @@ class KeywordMonitor(BaseMonitor):
         self.logger.debug("关键词监控器无可用的回复内容")
         return []
     
-    async def _add_monitor_specific_info(self, log_parts: List[str], message_event: MessageEvent, account: Account):
+    async def _extra_info(self, log_parts: List[str], message_event: MessageEvent, account: Account):
         match_type_name = {
             'exact': '精确匹配',
             'partial': '包含匹配', 
@@ -152,7 +152,7 @@ class KeywordMonitor(BaseMonitor):
             if self.keyword_config.regex_send_random_offset > 0:
                 log_parts.append(f"⏱️ 随机延时: 0-{self.keyword_config.regex_send_random_offset}秒")
     
-    async def _get_monitor_type_info(self) -> str:
+    async def _type_info(self) -> str:
         match_type_name = {
             'exact': '精确',
             'partial': '包含', 

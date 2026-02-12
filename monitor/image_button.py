@@ -22,7 +22,7 @@ class ImageButtonMonitor(BaseMonitor):
         with open(photo_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode("utf-8")
     
-    async def _match_condition(self, message_event: MessageEvent, account: Account) -> bool:
+    async def _match(self, message_event: MessageEvent, account: Account) -> bool:
         message = message_event.message
         
         has_image = False
@@ -50,7 +50,7 @@ class ImageButtonMonitor(BaseMonitor):
         
         if self.image_button_config.button_keywords:
             if has_buttons:
-                button_texts = self._extract_button_texts(message.buttons)
+                button_texts = self._button_texts(message.buttons)
                 matched = any(
                     keyword.lower() in text.lower() 
                     for keyword in self.image_button_config.button_keywords
@@ -62,7 +62,7 @@ class ImageButtonMonitor(BaseMonitor):
         
         return True
     
-    async def _execute_custom_actions(self, message_event: MessageEvent, account: Account) -> List[str]:
+    async def _custom_actions(self, message_event: MessageEvent, account: Account) -> List[str]:
         actions = []
         message = message_event.message
         
@@ -156,7 +156,7 @@ class ImageButtonMonitor(BaseMonitor):
                     button_to_click = ""
                 
                 if button_to_click:
-                    success = await self._click_button_by_text(message_event, account, button_to_click, button_options)
+                    success = await self._click_button(message_event, account, button_to_click, button_options)
                     if success:
                         actions.append(f"点击按钮: {button_to_click}")
                         self.logger.info(f"[图片+按钮] ✅ 成功点击按钮: {button_to_click}")
@@ -200,7 +200,7 @@ class ImageButtonMonitor(BaseMonitor):
         }
         
         if message.buttons:
-            content['buttons'] = self._extract_button_info(message.buttons)
+            content['buttons'] = self._button_info(message.buttons)
         
         if message.media and message.media.has_media:
             has_media_image = False
@@ -259,7 +259,7 @@ class ImageButtonMonitor(BaseMonitor):
         
         return content
     
-    def _extract_button_texts(self, buttons) -> List[str]:
+    def _button_texts(self, buttons) -> List[str]:
         texts = []
         for row in buttons:
             for button in row:
@@ -267,7 +267,7 @@ class ImageButtonMonitor(BaseMonitor):
                     texts.append(button.text)
         return texts
     
-    def _extract_button_info(self, buttons) -> List[Dict[str, str]]:
+    def _button_info(self, buttons) -> List[Dict[str, str]]:
         button_info = []
         for row_idx, row in enumerate(buttons):
             for col_idx, button in enumerate(row):
@@ -298,7 +298,7 @@ class ImageButtonMonitor(BaseMonitor):
             self.logger.error(f"点击按钮失败: {e}")
             return False
     
-    async def _click_button_by_text(self, message_event: MessageEvent, account: Account, ai_answer: str, button_options: List[str]) -> bool:
+    async def _click_button(self, message_event: MessageEvent, account: Account, ai_answer: str, button_options: List[str]) -> bool:
         try:
             message = message_event.message
             ai_answer_lower = ai_answer.lower().strip()
@@ -359,7 +359,7 @@ class ImageButtonMonitor(BaseMonitor):
         except Exception as e:
             self.logger.error(f"发送回复失败: {e}")
     
-    async def _add_monitor_specific_info(self, log_parts: List[str], message_event: MessageEvent, account: Account):
+    async def _extra_info(self, log_parts: List[str], message_event: MessageEvent, account: Account):
         message = message_event.message
         
         log_parts.append(f"🤖 AI提示: \"{self.image_button_config.ai_prompt[:60]}{'...' if len(self.image_button_config.ai_prompt) > 60 else ''}\"")
@@ -392,6 +392,6 @@ class ImageButtonMonitor(BaseMonitor):
         if config_options:
             log_parts.append(f"⚙️ 启用功能: {' | '.join(config_options)}")
     
-    async def _get_monitor_type_info(self) -> str:
+    async def _type_info(self) -> str:
         prompt_preview = self.image_button_config.ai_prompt[:25] + "..." if len(self.image_button_config.ai_prompt) > 25 else self.image_button_config.ai_prompt
         return f"(图片+按钮:\"{prompt_preview}\")" 

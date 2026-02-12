@@ -35,13 +35,13 @@ class EnhancedForwardService(metaclass=Singleton):
         
         for target_id in target_ids:
             try:
-                success = await self._try_direct_forward(client, message, target_id)
+                success = await self._direct_forward(client, message, target_id)
                 if success:
                     results[target_id] = True
                     self.logger.info(f"直接转发成功到 {target_id}")
                     continue
                 
-                success = await self._download_and_resend(
+                success = await self._download_resend(
                     client, message, target_id, max_download_size_mb, download_folder
                 )
                 results[target_id] = success
@@ -52,7 +52,7 @@ class EnhancedForwardService(metaclass=Singleton):
         
         return results
     
-    async def _try_direct_forward(
+    async def _direct_forward(
         self, 
         client: TelegramClient, 
         message: TelegramMessage, 
@@ -73,7 +73,7 @@ class EnhancedForwardService(metaclass=Singleton):
             self.logger.error(f"直接转发失败: {e}")
             return False
     
-    async def _download_and_resend(
+    async def _download_resend(
         self,
         client: TelegramClient,
         message: TelegramMessage,
@@ -93,15 +93,15 @@ class EnhancedForwardService(metaclass=Singleton):
             download_path.mkdir(parents=True, exist_ok=True)
             
             if message.media and message.media.has_media:
-                return await self._download_and_send_media(client, message, target_id, download_path)
+                return await self._send_media(client, message, target_id, download_path)
             else:
-                return await self._send_text_message(client, message, target_id)
+                return await self._send_text(client, message, target_id)
                 
         except Exception as e:
             self.logger.error(f"下载重发失败: {e}")
             return False
     
-    async def _download_and_send_media(
+    async def _send_media(
         self,
         client: TelegramClient,
         message: TelegramMessage,
@@ -138,7 +138,7 @@ class EnhancedForwardService(metaclass=Singleton):
             if downloaded_path:
                 await self._cleanup_file(downloaded_path)
     
-    async def _send_text_message(
+    async def _send_text(
         self,
         client: TelegramClient,
         message: TelegramMessage,

@@ -16,7 +16,7 @@ class ButtonMonitor(BaseMonitor):
         super().__init__(config)
         self.button_config = config
 
-    async def _match_condition(self, message_event: MessageEvent, account: Account) -> bool:
+    async def _match(self, message_event: MessageEvent, account: Account) -> bool:
         message = message_event.message
 
         if not message.has_buttons:
@@ -36,7 +36,7 @@ class ButtonMonitor(BaseMonitor):
                 return True
         return False
 
-    async def _execute_custom_actions(self, message_event: MessageEvent, account: Account) -> List[str]:
+    async def _custom_actions(self, message_event: MessageEvent, account: Account) -> List[str]:
         actions_taken = []
 
         if self.button_config.mode == MonitorMode.MANUAL:
@@ -136,7 +136,7 @@ class ButtonMonitor(BaseMonitor):
     async def _get_ai_choice(self, prompt: str) -> str:
         return ""
 
-    async def _add_monitor_specific_info(self, log_parts: List[str], message_event: MessageEvent, account: Account):
+    async def _extra_info(self, log_parts: List[str], message_event: MessageEvent, account: Account):
         message = message_event.message
 
         mode_name = {
@@ -159,7 +159,7 @@ class ButtonMonitor(BaseMonitor):
             log_parts.append(f"🎯 检测到按钮: {button_preview}")
             log_parts.append(f"📊 按钮总数: {button_count} 个")
 
-    async def _get_monitor_type_info(self) -> str:
+    async def _type_info(self) -> str:
         mode_name = {
             'manual': '手动',
             'ai': 'AI'

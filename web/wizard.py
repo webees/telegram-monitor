@@ -68,13 +68,13 @@ class ConfigWizard(metaclass=Singleton):
         self.logger = get_logger(__name__)
         self.sessions: Dict[str, WizardSession] = {}
 
-        self.steps = self._define_wizard_steps()
+        self.steps = self._define_steps()
 
-        self._start_session_cleanup()
+        self._start_cleanup()
 
         self.logger.info("配置向导初始化完成")
 
-    def _start_session_cleanup(self):
+    def _start_cleanup(self):
         import threading
 
         def cleanup_old_sessions():
@@ -102,7 +102,7 @@ class ConfigWizard(metaclass=Singleton):
         cleanup_thread = threading.Thread(target=cleanup_old_sessions, daemon=True)
         cleanup_thread.start()
 
-    def _define_wizard_steps(self) -> Dict[WizardStepType, WizardStep]:
+    def _define_steps(self) -> Dict[WizardStepType, WizardStep]:
         return {
             WizardStepType.ACCOUNT_SETUP: WizardStep(
                 step_type=WizardStepType.ACCOUNT_SETUP,
@@ -930,7 +930,7 @@ class ConfigWizard(metaclass=Singleton):
 
             collected_data = {}
             if edit_config:
-                collected_data = self._config_to_wizard_data(edit_config, edit_key)
+                collected_data = self._config_to_data(edit_config, edit_key)
                 self.logger.debug(f"预填充数据: {collected_data}")
 
             monitor_type = collected_data.get('monitor_type', 'keyword')
@@ -971,7 +971,7 @@ class ConfigWizard(metaclass=Singleton):
                 "message": f"编辑模式启动失败: {str(e)}"
             }
 
-    def _config_to_wizard_data(self, config: Dict[str, Any], edit_key: str) -> Dict[str, Any]:
+    def _config_to_data(self, config: Dict[str, Any], edit_key: str) -> Dict[str, Any]:
         data = {}
 
         data['edit_key'] = edit_key
@@ -1136,7 +1136,7 @@ class ConfigWizard(metaclass=Singleton):
         session = self.sessions[session_id]
         step = self.steps[session.current_step]
 
-        fields = self._process_dynamic_fields(step.fields, session)
+        fields = self._dynamic_fields(step.fields, session)
 
         result = {
             "session_id": str(session_id),
@@ -1157,7 +1157,7 @@ class ConfigWizard(metaclass=Singleton):
 
         return result
 
-    def _process_dynamic_fields(self, fields: List[Dict[str, Any]], session: WizardSession) -> List[Dict[str, Any]]:
+    def _dynamic_fields(self, fields: List[Dict[str, Any]], session: WizardSession) -> List[Dict[str, Any]]:
         import copy
         processed_fields = []
 
@@ -1197,7 +1197,7 @@ class ConfigWizard(metaclass=Singleton):
 
             if field.get("value") == "dynamic":
                 if field["name"] == "config_summary":
-                    field_copy["value"] = self._generate_config_summary(session)
+                    field_copy["value"] = self._config_summary(session)
 
             field_name = field["name"]
             if field_name in session.collected_data:
@@ -1225,7 +1225,7 @@ class ConfigWizard(metaclass=Singleton):
 
         return processed_fields
 
-    def _generate_config_summary(self, session: WizardSession) -> str:
+    def _config_summary(self, session: WizardSession) -> str:
         data = session.collected_data
         summary_parts = []
 
@@ -1279,7 +1279,7 @@ class ConfigWizard(metaclass=Singleton):
             session = self.sessions[session_id]
             step = self.steps[session.current_step]
 
-            errors = self._validate_step_data(step, step_data)
+            errors = self._validate_step(step, step_data)
             session.errors = errors
 
             if errors:
@@ -1305,7 +1305,7 @@ class ConfigWizard(metaclass=Singleton):
 
             session.completed_steps.append(session.current_step)
 
-            next_step = self._get_next_step(step, step_data)
+            next_step = self._next_step(step, step_data)
 
             if next_step:
                 session.current_step = next_step
@@ -1360,7 +1360,7 @@ class ConfigWizard(metaclass=Singleton):
                 "message": f"操作失败: {str(e)}"
             }
 
-    def _validate_step_data(self, step: WizardStep, data: Dict[str, Any]) -> List[str]:
+    def _validate_step(self, step: WizardStep, data: Dict[str, Any]) -> List[str]:
         errors = []
 
         if not step.validation_rules:
@@ -1397,7 +1397,7 @@ class ConfigWizard(metaclass=Singleton):
 
         return errors
 
-    def _get_next_step(self, step: WizardStep, step_data: Dict[str, Any]) -> Optional[WizardStepType]:
+    def _next_step(self, step: WizardStep, step_data: Dict[str, Any]) -> Optional[WizardStepType]:
         if step.conditional_next:
             if "monitor_type" in step_data:
                 monitor_type = step_data.get("monitor_type")
@@ -1436,7 +1436,7 @@ class ConfigWizard(metaclass=Singleton):
                 self.logger.info(f"编辑模式：已删除旧配置 {edit_key}")
 
             if monitor_type == "keyword":
-                config = self._create_keyword_config(data)
+                config = self._make_keyword(data)
                 monitor = monitor_factory.create_monitor(config)
                 monitor_key = f"keyword_{data['keyword']}"
 
@@ -1456,7 +1456,7 @@ class ConfigWizard(metaclass=Singleton):
                     file_data = data.copy()
                     file_data['file_extension'] = ext
 
-                    config = self._create_file_config(file_data)
+                    config = self._make_file(file_data)
                     monitor = monitor_factory.create_monitor(config)
                     monitor_key = f"file_{ext}"
 
@@ -1469,26 +1469,26 @@ class ConfigWizard(metaclass=Singleton):
                     "success": True,
                     "message": f"成功创建 {len(created_monitors)} 个文件监控器: {', '.join(created_monitors)}",
                     "monitor_keys": [f"file_{ext}" for ext in created_monitors],
-                    "config_summary": self._generate_config_summary(session)
+                    "config_summary": self._config_summary(session)
                 }
 
             elif monitor_type == "button":
                 if data.get("monitor_subtype") == "image_button":
-                    config = self._create_image_button_config(data)
+                    config = self._make_image_btn(data)
                     monitor = monitor_factory.create_monitor(config)
                     monitor_key = f"image_button_{data.get('image_ai_prompt', '')[:20]}..."
                 else:
-                    config = self._create_button_config(data)
+                    config = self._make_button(data)
                     monitor = monitor_factory.create_monitor(config)
                     monitor_key = f"button_{data['button_keyword']}"
 
             elif monitor_type == "all_messages":
-                config = self._create_all_messages_config(data)
+                config = self._make_all_msg(data)
                 monitor = monitor_factory.create_monitor(config)
                 monitor_key = f"all_messages_{data['chat_id']}"
 
             elif monitor_type == "ai":
-                ai_monitor = self._create_ai_monitor(data)
+                ai_monitor = self._make_ai(data)
                 monitor = ai_monitor
                 monitor_key = f"ai_{data['ai_prompt'][:20]}..."
 
@@ -1507,7 +1507,7 @@ class ConfigWizard(metaclass=Singleton):
                 "success": True,
                 "message": "监控器创建成功！",
                 "monitor_key": monitor_key,
-                "config_summary": self._generate_config_summary(session)
+                "config_summary": self._config_summary(session)
             }
 
         except Exception as e:
@@ -1517,7 +1517,7 @@ class ConfigWizard(metaclass=Singleton):
                 "message": f"配置失败: {str(e)}"
             }
 
-    def _create_keyword_config(self, data: Dict[str, Any]) -> KeywordConfig:
+    def _make_keyword(self, data: Dict[str, Any]) -> KeywordConfig:
         chats = []
         chats_str = data.get('chats', '')
         if chats_str:
@@ -1683,7 +1683,7 @@ class ConfigWizard(metaclass=Singleton):
 
         return config
 
-    def _create_file_config(self, data: Dict[str, Any]) -> FileConfig:
+    def _make_file(self, data: Dict[str, Any]) -> FileConfig:
         chats_str = data.get("chats", "")
         chat_ids = []
 
@@ -1846,7 +1846,7 @@ class ConfigWizard(metaclass=Singleton):
 
         return configs[0] if configs else FileConfig()
 
-    def _create_ai_monitor(self, data: Dict[str, Any]):
+    def _make_ai(self, data: Dict[str, Any]):
         chats_str = data.get("chats", "")
         chat_ids = []
 
@@ -1924,7 +1924,7 @@ class ConfigWizard(metaclass=Singleton):
 
         return builder.build()
 
-    def _create_button_config(self, data: Dict[str, Any]) -> ButtonConfig:
+    def _make_button(self, data: Dict[str, Any]) -> ButtonConfig:
         chats_str = data.get("chats", "")
         chat_ids = []
 
@@ -2053,7 +2053,7 @@ class ConfigWizard(metaclass=Singleton):
             log_file=data.get("log_file") if log_to_file else None
         )
 
-    def _create_image_button_config(self, data: Dict[str, Any]):
+    def _make_image_btn(self, data: Dict[str, Any]):
         chats_str = data.get("chats", "")
         chat_ids = []
 
@@ -2195,7 +2195,7 @@ class ConfigWizard(metaclass=Singleton):
             log_file=data.get("log_file") if log_to_file else None
         )
 
-    def _create_all_messages_config(self, data: Dict[str, Any]) -> AllMessagesConfig:
+    def _make_all_msg(self, data: Dict[str, Any]) -> AllMessagesConfig:
         chat_id = 0
         if data.get("chat_id"):
             try:

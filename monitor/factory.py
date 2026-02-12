@@ -1,12 +1,9 @@
-"""
-监控器工厂 - 应用工厂模式
-根据配置类型创建相应的监控器实例
-"""
+"""监控器工厂"""
 
-from typing import Dict, Type, Optional, Any
+from typing import Dict, Type, Optional
 
 from core.model import (
-    BaseMonitorConfig, KeywordConfig, FileConfig, 
+    BaseMonitorConfig, KeywordConfig, FileConfig,
     ButtonConfig, AllMessagesConfig, AIMonitorConfig, ImageButtonConfig
 )
 from .base import BaseMonitor
@@ -15,40 +12,36 @@ from .ai import AIMonitor
 
 
 class MonitorFactory:
-    
+
     def __init__(self):
-        self._monitor_registry: Dict[Type[BaseMonitorConfig], Type[BaseMonitor]] = {}
-        self._register_default_monitors()
-    
-    def _register_default_monitors(self):
-        self._monitor_registry[KeywordConfig] = KeywordMonitor
-        self._monitor_registry[AIMonitorConfig] = AIMonitor
-        
-        from .file import FileMonitor
-        from .button import ButtonMonitor
-        from .all import AllMessagesMonitor
+        self._registry: Dict[Type, Type] = {}
+        self._init_defaults()
+
+    def _init_defaults(self):
+        self._registry[KeywordConfig]      = KeywordMonitor
+        self._registry[AIMonitorConfig]    = AIMonitor
+
+        from .file         import FileMonitor
+        from .button       import ButtonMonitor
+        from .all          import AllMessagesMonitor
         from .image_button import ImageButtonMonitor
-        
-        self._monitor_registry[FileConfig] = FileMonitor
-        self._monitor_registry[ButtonConfig] = ButtonMonitor
-        self._monitor_registry[AllMessagesConfig] = AllMessagesMonitor
-        self._monitor_registry[ImageButtonConfig] = ImageButtonMonitor
-    
-    def register_monitor(self, config_type: Type[BaseMonitorConfig], monitor_class: Type[BaseMonitor]):
-        self._monitor_registry[config_type] = monitor_class
-    
-    def create_monitor(self, config: BaseMonitorConfig) -> Optional[BaseMonitor]:
-        config_type = type(config)
-        monitor_class = self._monitor_registry.get(config_type)
-        
-        if monitor_class is None:
+
+        self._registry[FileConfig]         = FileMonitor
+        self._registry[ButtonConfig]       = ButtonMonitor
+        self._registry[AllMessagesConfig]  = AllMessagesMonitor
+        self._registry[ImageButtonConfig]  = ImageButtonMonitor
+
+    def register(self, cfg_type: Type, cls: Type):
+        self._registry[cfg_type] = cls
+
+    def create(self, config: BaseMonitorConfig) -> Optional[BaseMonitor]:
+        cls = self._registry.get(type(config))
+        if not cls:
             return None
-        
         try:
-            return monitor_class(config)
+            return cls(config)
         except Exception:
             return None
 
 
 monitor_factory = MonitorFactory()
- 

@@ -17,7 +17,7 @@ class FileMonitor(BaseMonitor):
         super().__init__(config)
         self.file_config = config
     
-    async def _match_condition(self, message_event: MessageEvent, account: Account) -> bool:
+    async def _match(self, message_event: MessageEvent, account: Account) -> bool:
         message = message_event.message
         
         if not message.media or not message.media.has_media:
@@ -88,7 +88,7 @@ class FileMonitor(BaseMonitor):
         
         return False
     
-    async def _execute_custom_actions(self, message_event: MessageEvent, account: Account) -> List[str]:
+    async def _custom_actions(self, message_event: MessageEvent, account: Account) -> List[str]:
         actions_taken = []
         
         if self.file_config.save_folder:
@@ -146,7 +146,7 @@ class FileMonitor(BaseMonitor):
             self.logger.error(f"保存文件失败: {e}")
             return False
 
-    async def _add_monitor_specific_info(self, log_parts: List[str], message_event: MessageEvent, account: Account):
+    async def _extra_info(self, log_parts: List[str], message_event: MessageEvent, account: Account):
         message = message_event.message
         
         log_parts.append(f"📄 监控扩展名: \"{self.file_config.file_extension}\"")
@@ -169,5 +169,5 @@ class FileMonitor(BaseMonitor):
         if self.file_config.save_folder:
             log_parts.append(f"💾 保存路径: {self.file_config.save_folder}")
     
-    async def _get_monitor_type_info(self) -> str:
+    async def _type_info(self) -> str:
         return f"(文件:{self.file_config.file_extension})" 

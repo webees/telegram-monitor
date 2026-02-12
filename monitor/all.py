@@ -14,13 +14,13 @@ class AllMessagesMonitor(BaseMonitor):
         super().__init__(config)
         self.all_messages_config = config
     
-    async def _match_condition(self, message_event: MessageEvent, account: Account) -> bool:
+    async def _match(self, message_event: MessageEvent, account: Account) -> bool:
         self.logger.info(f"[全量监控] 处理消息 - 来自: {message_event.message.sender.full_name} ({message_event.message.sender.id})")
         self.logger.info(f"[全量监控] 群组: 聊天ID {message_event.message.chat_id}")
         self.logger.info(f"[全量监控] 内容: {message_event.message.text[:100] if message_event.message.text else '(非文本消息)'}")
         return True
     
-    async def _execute_custom_actions(self, message_event: MessageEvent, account: Account) -> List[str]:
+    async def _custom_actions(self, message_event: MessageEvent, account: Account) -> List[str]:
         actions = []
         
         self.logger.info(f"[全量监控] 执行动作 - 执行次数: {self.config.execution_count + 1}")
@@ -32,7 +32,7 @@ class AllMessagesMonitor(BaseMonitor):
         
         return actions 
     
-    def get_dynamic_reply_content(self) -> List[str]:
+    def reply_content(self) -> List[str]:
         if hasattr(self.all_messages_config, 'reply_content_type'):
             from core.model import ReplyContentType
             
@@ -44,7 +44,7 @@ class AllMessagesMonitor(BaseMonitor):
         
         return self.all_messages_config.reply_texts if self.all_messages_config.reply_texts else []
     
-    async def _add_monitor_specific_info(self, log_parts: List[str], message_event: MessageEvent, account: Account):
+    async def _extra_info(self, log_parts: List[str], message_event: MessageEvent, account: Account):
         if self.all_messages_config.chat_id and self.all_messages_config.chat_id != 0:
             log_parts.append(f"🎯 监控目标: 特定聊天 {self.all_messages_config.chat_id}")
         else:
@@ -60,7 +60,7 @@ class AllMessagesMonitor(BaseMonitor):
         
         log_parts.append(f"📊 监控范围: 全量消息监控")
     
-    async def _get_monitor_type_info(self) -> str:
+    async def _type_info(self) -> str:
         if self.all_messages_config.chat_id and self.all_messages_config.chat_id != 0:
             return f"(指定聊天:{self.all_messages_config.chat_id})"
         else:

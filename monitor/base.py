@@ -46,7 +46,7 @@ class BaseMonitor(ABC):
                     message="监控器已暂停"
                 )
             
-            if not self._should_process(message_event, account):
+            if not self._check(message_event, account):
                 return MonitorAction(
                     result=MonitorResult.NO_MATCH,
                     actions_taken=[],
@@ -67,7 +67,7 @@ class BaseMonitor(ABC):
                     message="已达到最大执行次数"
                 )
             
-            if not await self._match_condition(message_event, account):
+            if not await self._match(message_event, account):
                 return MonitorAction(
                     result=MonitorResult.NO_MATCH,
                     actions_taken=[],
@@ -77,10 +77,10 @@ class BaseMonitor(ABC):
             
             actions_taken = await self._execute_actions(message_event, account)
             
-            await self._log_monitor_trigger(message_event, account)
+            await self._log_trigger(message_event, account)
             
             if actions_taken:
-                self._log_execution_result(message_event, account, actions_taken)
+                self._log_result(message_event, account, actions_taken)
             
             return MonitorAction(
                 result=MonitorResult.MATCHED,
@@ -97,7 +97,7 @@ class BaseMonitor(ABC):
                 error=e
             )
     
-    def _should_process(self, message_event: MessageEvent, account: Account) -> bool:
+    def _check(self, message_event: MessageEvent, account: Account) -> bool:
         message = message_event.message
         
         if message.sender.id == account.own_user_id:
@@ -109,17 +109,17 @@ class BaseMonitor(ABC):
             
         self.logger.debug(f"✅ 消息来源聊天 {message.chat_id} 在监控列表中")
         
-        if not self._match_user_filter(message.sender):
+        if not self._match_user(message.sender):
             return False
 
-        if not self._match_chat_filter(message_event):
+        if not self._match_chat(message_event):
             self.logger.debug(f"消息因聊天来源过滤失败，聊天ID: {message.chat_id}")
             return False
 
         self.logger.debug(f"消息通过所有过滤条件，聊天ID: {message.chat_id}, 发送者: {message.sender.id if message.sender else 'None'}")
         return True
     
-    def _match_user_filter(self, sender) -> bool:
+    def _match_user(self, sender) -> bool:
         if self.config.users:
             user_option = self.config.user_option
             
@@ -150,7 +150,7 @@ class BaseMonitor(ABC):
         
         return True
         
-    def _match_chat_filter(self, message_event: MessageEvent) -> bool:
+    def _match_chat(self, message_event: MessageEvent) -> bool:
         message = message_event.message
         chat_id = message.chat_id
         sender = message.sender
@@ -242,7 +242,7 @@ class BaseMonitor(ABC):
         return False
     
     @abstractmethod
-    async def _match_condition(self, message_event: MessageEvent, account: Account) -> bool:
+    async def _match(self, message_event: MessageEvent, account: Account) -> bool:
         pass
     
     async def _execute_actions(self, message_event: MessageEvent, account: Account) -> List[str]:
@@ -250,7 +250,7 @@ class BaseMonitor(ABC):
         
         try:
             
-            custom_actions = await self._execute_custom_actions(message_event, account)
+            custom_actions = await self._custom_actions(message_event, account)
             actions_taken.extend(custom_actions)
             
         except Exception as e:
@@ -260,10 +260,10 @@ class BaseMonitor(ABC):
         return actions_taken
     
     
-    async def _execute_custom_actions(self, message_event: MessageEvent, account: Account) -> List[str]:
+    async def _custom_actions(self, message_event: MessageEvent, account: Account) -> List[str]:
         return []
     
-    async def _log_monitor_trigger(self, message_event: MessageEvent, account: Account):
+    async def _log_trigger(self, message_event: MessageEvent, account: Account):
         message = message_event.message
         monitor_type = self.__class__.__name__.replace('Monitor', '')
         
@@ -281,7 +281,7 @@ class BaseMonitor(ABC):
         if message.text:
             content_preview = message.text[:50] + "..." if len(message.text) > 50 else message.text
         
-        monitor_info = await self._get_monitor_type_info()
+        monitor_info = await self._type_info()
         self.logger.info(f"🎯 [{monitor_type}监控器{monitor_info}] 频道:{message.chat_id} 发送者:{message.sender.id if message.sender else 'N/A'} 内容:\"{content_preview}\"")
         
         if self.logger.isEnabledFor(logging.DEBUG):
@@ -309,7 +309,7 @@ class BaseMonitor(ABC):
                     button_text += f" (+{len(message.button_texts)-3}个)"
                 detailed_log_parts.append(f"🔘 按钮: {button_text}")
             
-            await self._add_monitor_specific_info(detailed_log_parts, message_event, account)
+            await self._extra_info(detailed_log_parts, message_event, account)
             
             execution_count = getattr(self.config, 'execution_count', 0) + 1
             max_executions = getattr(self.config, 'max_executions', None)
@@ -321,10 +321,10 @@ class BaseMonitor(ABC):
             detailed_log_parts.append("=" * 60)
             self.logger.debug("\n" + "\n".join(detailed_log_parts))
     
-    async def _add_monitor_specific_info(self, log_parts: List[str], message_event: MessageEvent, account: Account):
+    async def _extra_info(self, log_parts: List[str], message_event: MessageEvent, account: Account):
         pass
     
-    def _log_execution_result(self, message_event: MessageEvent, account: Account, actions_taken: List[str]):
+    def _log_result(self, message_event: MessageEvent, account: Account, actions_taken: List[str]):
         monitor_type = self.__class__.__name__.replace('Monitor', '')
         
         if actions_taken:
@@ -339,5 +339,5 @@ class BaseMonitor(ABC):
     def update_config(self, config: BaseMonitorConfig):
         self.config = config
     
-    async def _get_monitor_type_info(self) -> str:
+    async def _type_info(self) -> str:
         return "" 

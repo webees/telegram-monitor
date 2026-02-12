@@ -21,7 +21,7 @@ class AIMonitor(BaseMonitor):
         self.ai_service = AIService()
         self.logger = get_logger(__name__)
     
-    async def _match_condition(self, message_event: MessageEvent, account: Account) -> bool:
+    async def _match(self, message_event: MessageEvent, account: Account) -> bool:
         message = message_event.message
         
         if not self.ai_service.is_configured():
@@ -132,7 +132,7 @@ class AIMonitor(BaseMonitor):
         self.logger.warning(f"AI回复不明确: {ai_response}，默认为不匹配")
         return False
     
-    async def _execute_custom_actions(self, message_event: MessageEvent, account: Account) -> List[str]:
+    async def _custom_actions(self, message_event: MessageEvent, account: Account) -> List[str]:
         actions_taken = []
         
         actions_taken.append("AI判断匹配成功")
@@ -145,18 +145,18 @@ class AIMonitor(BaseMonitor):
         
         return actions_taken
 
-    def get_dynamic_reply_content(self) -> List[str]:
+    def reply_content(self) -> List[str]:
         if self.ai_config.reply_texts:
             return self.ai_config.reply_texts
         
         if self.ai_config.ai_response_content:
-            cleaned_content = self._clean_ai_response_for_reply(self.ai_config.ai_response_content)
+            cleaned_content = self._clean_reply(self.ai_config.ai_response_content)
             if cleaned_content:
                 return [cleaned_content]
         
         return []
     
-    def _clean_ai_response_for_reply(self, ai_response: str) -> str:
+    def _clean_reply(self, ai_response: str) -> str:
         if not ai_response:
             return ""
         
@@ -183,7 +183,7 @@ class AIMonitor(BaseMonitor):
         
         return response
 
-    async def _add_monitor_specific_info(self, log_parts: List[str], message_event: MessageEvent, account: Account):
+    async def _extra_info(self, log_parts: List[str], message_event: MessageEvent, account: Account):
         log_parts.append(f"🤖 AI模型: {self.ai_config.ai_model}")
         log_parts.append(f"🎨 提示词: \"{self.ai_config.ai_prompt[:80]}{'...' if len(self.ai_config.ai_prompt) > 80 else ''}\"")
         log_parts.append(f"📊 置信度阈值: {self.ai_config.confidence_threshold}")
@@ -204,7 +204,7 @@ class AIMonitor(BaseMonitor):
             if self.ai_config.reply_delay_max > 0:
                 log_parts.append(f"⏱️ 回复延时: {self.ai_config.reply_delay_min}-{self.ai_config.reply_delay_max}秒")
     
-    async def _get_monitor_type_info(self) -> str:
+    async def _type_info(self) -> str:
         prompt_preview = self.ai_config.ai_prompt[:30] + "..." if len(self.ai_config.ai_prompt) > 30 else self.ai_config.ai_prompt
         ai_response_preview = ""
         

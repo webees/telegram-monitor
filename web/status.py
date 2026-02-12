@@ -77,23 +77,23 @@ class StatusMonitor(metaclass=Singleton):
         
         self.message_timestamps: List[float] = []
         
-        self._initialize_system_monitoring()
+        self._init_system()
         
         self.logger.info(f"状态监控器初始化完成 - 系统: {self.system_platform}")
     
-    def _initialize_system_monitoring(self):
+    def _init_system(self):
         try:
             self.last_network_stats = psutil.net_io_counters()
             self.logger.debug("网络监控初始化成功")
             
             if self.system_platform == 'linux':
-                self._check_linux_permissions()
+                self._check_perms()
                 
         except Exception as e:
             self.logger.warning(f"系统监控初始化时出现问题: {e}")
             self.last_network_stats = None
     
-    def _check_linux_permissions(self):
+    def _check_perms(self):
         try:
             critical_paths = ['/', '/proc', '/sys']
             for path in critical_paths:
@@ -160,16 +160,16 @@ class StatusMonitor(metaclass=Singleton):
     def get_performance_metrics(self) -> PerformanceMetrics:
         try:
             if self.system_platform == 'linux':
-                cpu_percent = self._get_linux_cpu_info()
-                memory_percent, memory_used_mb, memory_total_mb = self._get_linux_memory_info()
-                disk_usage_percent = self._get_linux_disk_info()
-                network_sent_mb, network_recv_mb = self._get_linux_network_info()
+                cpu_percent = self._linux_cpu()
+                memory_percent, memory_used_mb, memory_total_mb = self._linux_memory()
+                disk_usage_percent = self._linux_disk()
+                network_sent_mb, network_recv_mb = self._linux_network()
                 
             else:
-                cpu_percent = self._get_generic_cpu_info()
-                memory_percent, memory_used_mb, memory_total_mb = self._get_generic_memory_info()
-                disk_usage_percent = self._get_generic_disk_info()
-                network_sent_mb, network_recv_mb = self._get_generic_network_info()
+                cpu_percent = self._generic_cpu()
+                memory_percent, memory_used_mb, memory_total_mb = self._generic_memory()
+                disk_usage_percent = self._generic_disk()
+                network_sent_mb, network_recv_mb = self._generic_network()
             
             cpu_percent = max(0.0, min(100.0, cpu_percent))
             memory_percent = max(0.0, min(100.0, memory_percent))
@@ -337,7 +337,7 @@ class StatusMonitor(metaclass=Singleton):
             "active_monitors": status.monitoring.active_monitors
         } 
 
-    def _get_linux_cpu_info(self) -> float:
+    def _linux_cpu(self) -> float:
         try:
             cpu_percent = psutil.cpu_percent(interval=0.1)
             
@@ -359,7 +359,7 @@ class StatusMonitor(metaclass=Singleton):
             self.logger.warning(f"Linux CPU信息获取失败: {e}")
             return 0.0
     
-    def _get_linux_memory_info(self) -> tuple[float, float, float]:
+    def _linux_memory(self) -> tuple[float, float, float]:
         try:
             memory = psutil.virtual_memory()
             return (
@@ -393,7 +393,7 @@ class StatusMonitor(metaclass=Singleton):
             
             return (0.0, 0.0, 1024.0)
     
-    def _get_linux_disk_info(self) -> float:
+    def _linux_disk(self) -> float:
         try:
             mount_points = ['/', '/home', '/var', '/tmp']
             
@@ -431,7 +431,7 @@ class StatusMonitor(metaclass=Singleton):
             self.logger.warning(f"Linux磁盘信息获取失败: {e}")
             return 0.0
     
-    def _get_linux_network_info(self) -> tuple[float, float]:
+    def _linux_network(self) -> tuple[float, float]:
         try:
             current_network = psutil.net_io_counters()
             
@@ -458,7 +458,7 @@ class StatusMonitor(metaclass=Singleton):
                 pass
             return (0.0, 0.0) 
 
-    def _get_generic_cpu_info(self) -> float:
+    def _generic_cpu(self) -> float:
         try:
             cpu_percent = psutil.cpu_percent(interval=0.1)
             if cpu_percent == 0.0:
@@ -468,7 +468,7 @@ class StatusMonitor(metaclass=Singleton):
             self.logger.warning(f"通用CPU信息获取失败: {e}")
             return 0.0
     
-    def _get_generic_memory_info(self) -> tuple[float, float, float]:
+    def _generic_memory(self) -> tuple[float, float, float]:
         try:
             memory = psutil.virtual_memory()
             return (
@@ -480,7 +480,7 @@ class StatusMonitor(metaclass=Singleton):
             self.logger.warning(f"通用内存信息获取失败: {e}")
             return (0.0, 0.0, 1024.0)
     
-    def _get_generic_disk_info(self) -> float:
+    def _generic_disk(self) -> float:
         try:
             if self.system_platform == 'windows':
                 disk_path = 'C:\\'
@@ -493,7 +493,7 @@ class StatusMonitor(metaclass=Singleton):
             self.logger.warning(f"通用磁盘信息获取失败: {e}")
             return 0.0
     
-    def _get_generic_network_info(self) -> tuple[float, float]:
+    def _generic_network(self) -> tuple[float, float]:
         try:
             current_network = psutil.net_io_counters()
             

@@ -124,7 +124,7 @@ class WebApp:
         
         self.logger.info("Web应用初始化完成")
     
-    def _safe_remove_websocket(self, websocket: WebSocket):
+    def _remove_ws(self, websocket: WebSocket):
         try:
             if websocket in self.websocket_connections:
                 self.websocket_connections.remove(websocket)
@@ -943,7 +943,7 @@ class WebApp:
             except Exception as e:
                 self.logger.error(f"WebSocket错误: {e}")
             finally:
-                self._safe_remove_websocket(websocket)
+                self._remove_ws(websocket)
         
         @self.app.get("/api/accounts/{account_id}/channels")
         async def get_account_channels(request: Request, account_id: str, page: int = 1, limit: int = 100, search: str = "", fetch_all: str = ""):
@@ -1408,7 +1408,7 @@ class WebApp:
                         self.logger.info(f"📝 定时消息更新: {job_id}, 执行限制: {max_executions or '无限制'}, Cron: {new_cron}")
                         
                         if old_cron != new_cron or old_active:
-                            engine._ensure_scheduler_started()
+                            engine._start_scheduler()
                             
                             if engine.scheduler and engine.scheduler.running:
                                 try:
@@ -1420,7 +1420,7 @@ class WebApp:
                                 if msg.get('active', True) and new_cron:
                                     try:
                                         engine.scheduler.add_job(
-                                            engine._execute_scheduled_message,
+                                            engine._run_scheduled,
                                             CronTrigger.from_crontab(new_cron, timezone=pytz.timezone('Asia/Shanghai')),
                                             id=job_id,
                                             args=[job_id],
@@ -1453,7 +1453,7 @@ class WebApp:
                     if msg.get('job_id') == job_id:
                         msg['active'] = active
                         
-                        engine._ensure_scheduler_started()
+                        engine._start_scheduler()
                         
                         if active:
                             if msg.get('max_executions') and msg.get('execution_count', 0) >= msg.get('max_executions'):
@@ -1482,7 +1482,7 @@ class WebApp:
                                         self.logger.info(f"使用Cron触发器重新启动: {cron_expr}")
                                     
                                     engine.scheduler.add_job(
-                                        engine._execute_scheduled_message,
+                                        engine._run_scheduled,
                                         trigger,
                                         id=job_id,
                                         args=[job_id],

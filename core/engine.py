@@ -34,9 +34,9 @@ class MonitorEngine(metaclass=Singleton):
         self._scheduler_started = False
 
         self._load_monitors()
-        self._load_scheduled_messages()
+        self._load_scheduled()
 
-    def _ensure_scheduler_started(self):
+    def _start_scheduler(self):
         if not self._scheduler_started:
             try:
                 loop = asyncio.get_running_loop()
@@ -49,12 +49,12 @@ class MonitorEngine(metaclass=Singleton):
 
                 self._scheduler_started = True
 
-                self._restore_scheduled_jobs()
+                self._restore_jobs()
 
             except RuntimeError:
                 self.logger.debug("事件循环尚未启动，调度器将延后启动")
 
-    def _restore_scheduled_jobs(self):
+    def _restore_jobs(self):
         if not self.scheduler or not self.scheduler.running:
             return
 
@@ -83,7 +83,7 @@ class MonitorEngine(metaclass=Singleton):
                         self.logger.debug(f"恢复Cron任务 {job_id}: {cron_expr}")
 
                     self.scheduler.add_job(
-                        self._execute_scheduled_message,
+                        self._run_scheduled,
                         trigger,
                         id=job_id,
                         args=[job_id],
@@ -291,7 +291,7 @@ class MonitorEngine(metaclass=Singleton):
 
     async def start(self):
         try:
-            self._ensure_scheduler_started()
+            self._start_scheduler()
 
             from core import AccountManager
             account_manager = AccountManager()
@@ -386,9 +386,9 @@ class MonitorEngine(metaclass=Singleton):
 
         monitors_list.sort(key=lambda x: x[0])
 
-        await self._process_monitors_with_individual_modes(message_event, account, monitors_list)
+        await self._run_monitors(message_event, account, monitors_list)
 
-    async def _process_monitors_with_individual_modes(self, message_event: MessageEvent, account: Account,
+    async def _run_monitors(self, message_event: MessageEvent, account: Account,
                                                       monitors_list: list):
         merge_monitors = []
         merge_actions = {
@@ -421,8 +421,8 @@ class MonitorEngine(metaclass=Singleton):
                             'result': result,
                             'priority': priority
                         }]
-                        actions = self._collect_monitor_actions(monitor, monitor_key)
-                        await self._execute_merged_actions(message_event, account, actions, matched_monitors)
+                        actions = self._collect_actions(monitor, monitor_key)
+                        await self._run_actions(message_event, account, actions, matched_monitors)
                         return
 
                     elif execution_mode == 'all':
@@ -433,8 +433,8 @@ class MonitorEngine(metaclass=Singleton):
                             'result': result,
                             'priority': priority
                         }]
-                        actions = self._collect_monitor_actions(monitor, monitor_key)
-                        await self._execute_merged_actions(message_event, account, actions, matched_monitors)
+                        actions = self._collect_actions(monitor, monitor_key)
+                        await self._run_actions(message_event, account, actions, matched_monitors)
 
                     else:
                         self.logger.info(f"🔗 [合并模式] {monitor_key} 匹配，收集动作待合并")
@@ -452,7 +452,7 @@ class MonitorEngine(metaclass=Singleton):
 
         if merge_monitors:
             self.logger.info(f"🔗 [合并执行] 共 {len(merge_monitors)} 个merge模式监控器，合并执行动作")
-            await self._execute_merged_actions(message_event, account, merge_actions, merge_monitors)
+            await self._run_actions(message_event, account, merge_actions, merge_monitors)
 
     def _merge_monitor_actions(self, monitor, monitor_key: str, all_actions: dict):
         config = monitor.config
@@ -478,8 +478,8 @@ class MonitorEngine(metaclass=Singleton):
 
             all_actions['ai_reply_prompt'] = getattr(config, 'ai_reply_prompt', '')
 
-            if hasattr(monitor, 'get_dynamic_reply_content'):
-                dynamic_reply_texts = monitor.get_dynamic_reply_content()
+            if hasattr(monitor, 'reply_content'):
+                dynamic_reply_texts = monitor.reply_content()
                 if dynamic_reply_texts:
                     all_actions['reply_texts'] = dynamic_reply_texts
                     self.logger.debug(f"使用监控器 {monitor_key} 的动态回复内容: {len(dynamic_reply_texts)}条")
@@ -501,7 +501,7 @@ class MonitorEngine(metaclass=Singleton):
                 reply_mode_value = reply_mode_value.value
             all_actions['reply_mode'] = reply_mode_value
 
-    def _collect_monitor_actions(self, monitor, monitor_key: str) -> dict:
+    def _collect_actions(self, monitor, monitor_key: str) -> dict:
         config = monitor.config
         actions = {
             'email_notify': config.email_notify,
@@ -528,8 +528,8 @@ class MonitorEngine(metaclass=Singleton):
 
             actions['ai_reply_prompt'] = getattr(config, 'ai_reply_prompt', '')
 
-            if hasattr(monitor, 'get_dynamic_reply_content'):
-                dynamic_reply_texts = monitor.get_dynamic_reply_content()
+            if hasattr(monitor, 'reply_content'):
+                dynamic_reply_texts = monitor.reply_content()
                 if dynamic_reply_texts:
                     actions['reply_texts'] = dynamic_reply_texts
                 else:
@@ -547,18 +547,18 @@ class MonitorEngine(metaclass=Singleton):
 
         return actions
 
-    async def _execute_merged_actions(self, message_event: MessageEvent, account: Account,
+    async def _run_actions(self, message_event: MessageEvent, account: Account,
                                       actions: dict, matched_monitors: list):
 
         message = message_event.message
 
         try:
             if actions['email_notify']:
-                email_content = await self._build_enhanced_email_content(
+                email_content = await self._build_email(
                     message_event, account, matched_monitors
                 )
 
-                asyncio.create_task(self._send_email_notification_async(
+                asyncio.create_task(self._send_email_async(
                     subject=f"TG监控系统 - 检测到 {len(matched_monitors)} 个匹配",
                     content=email_content,
                     email_addresses=actions.get('email_addresses', []),
@@ -650,8 +650,8 @@ class MonitorEngine(metaclass=Singleton):
                     monitor = match['monitor']
                     monitor_type = monitor.__class__.__name__.replace('Monitor', '')
 
-                    if hasattr(monitor, '_get_monitor_type_info'):
-                        type_info = await monitor._get_monitor_type_info()
+                    if hasattr(monitor, '_type_info'):
+                        type_info = await monitor._type_info()
                     else:
                         type_info = ""
 
@@ -701,7 +701,7 @@ class MonitorEngine(metaclass=Singleton):
         except Exception as e:
             self.logger.error(f"执行合并动作时出错: {e}")
 
-    async def _build_enhanced_email_content(self, message_event: MessageEvent, account: Account,
+    async def _build_email(self, message_event: MessageEvent, account: Account,
                                             matched_monitors: list) -> str:
         """
         构建增强的邮件通知内容
@@ -813,7 +813,7 @@ class MonitorEngine(metaclass=Singleton):
 
         return email_content
 
-    async def process_message_event(self, event: events.NewMessage, account: Account):
+    async def process_event(self, event: events.NewMessage, account: Account):
         try:
             if not account.monitor_active:
                 return
@@ -896,7 +896,7 @@ class MonitorEngine(metaclass=Singleton):
             return
 
         account.client.add_event_handler(
-            lambda event: self.process_message_event(event, account),
+            lambda event: self.process_event(event, account),
             events.NewMessage()
         )
 
@@ -940,7 +940,7 @@ class MonitorEngine(metaclass=Singleton):
 
             self.logger.info(f"添加定时消息: {config.job_id}")
 
-            self._ensure_scheduler_started()
+            self._start_scheduler()
 
             if self.scheduler and self.scheduler.running:
                 try:
@@ -961,7 +961,7 @@ class MonitorEngine(metaclass=Singleton):
                         self.logger.info(f"使用Cron触发器: {config.cron}")
 
                     self.scheduler.add_job(
-                        self._execute_scheduled_message,
+                        self._run_scheduled,
                         trigger,
                         id=config.job_id,
                         args=[config.job_id],
@@ -979,7 +979,7 @@ class MonitorEngine(metaclass=Singleton):
     def get_scheduled_messages(self):
         return self.scheduled_messages
 
-    async def _execute_scheduled_message(self, job_id: str):
+    async def _run_scheduled(self, job_id: str):
         try:
             message_config = None
             for msg in self.scheduled_messages:
@@ -1179,7 +1179,7 @@ class MonitorEngine(metaclass=Singleton):
         except Exception as e:
             self.logger.error(f"保存定时消息文件失败: {e}")
 
-    def _load_scheduled_messages(self):
+    def _load_scheduled(self):
         if not self.scheduled_messages_file.exists():
             self.logger.info("定时消息文件不存在，跳过加载")
             return
@@ -1194,7 +1194,7 @@ class MonitorEngine(metaclass=Singleton):
         except Exception as e:
             self.logger.error(f"加载定时消息文件失败: {e}")
 
-    async def _send_email_notification(self, subject: str, content: str, email_addresses: list = None):
+    async def _send_email(self, subject: str, content: str, email_addresses: list = None):
         if not email_addresses:
             try:
                 from .config import config
@@ -1274,7 +1274,7 @@ class MonitorEngine(metaclass=Singleton):
             "processed_messages": len(self.processed_messages)
         }
 
-    async def _send_email_notification_async(
+    async def _send_email_async(
             self,
             subject: str,
             content: str,
@@ -1282,7 +1282,7 @@ class MonitorEngine(metaclass=Singleton):
             monitor_count: int = 1
     ):
         try:
-            await self._send_email_notification(subject, content, email_addresses)
+            await self._send_email(subject, content, email_addresses)
             self.logger.debug(f"邮件通知已后台发送完成 ({monitor_count}个监控器)")
         except Exception as e:
             self.logger.error(f"后台邮件发送失败: {e}")
