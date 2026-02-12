@@ -27,8 +27,8 @@ class MonitorEngine(metaclass=Singleton):
         self.processed_messages: Set[str] = set()
         self.scheduled_messages: List[Dict] = []
         self.logger = get_logger(__name__)
-        self.monitors_file = Path("data/monitor_configs.json")
-        self.scheduled_messages_file = Path("data/scheduled_messages.json")
+        self.monitors_file = Path("data/monitor.json")
+        self.scheduled_messages_file = Path("data/schedule.json")
 
         self.scheduler = None
         self._scheduler_started = False
@@ -97,15 +97,15 @@ class MonitorEngine(metaclass=Singleton):
             self.logger.info(f"恢复 {restored_count} 个调度任务")
 
     def _load_monitors(self):
-        old_config_file = Path("data/monitor.config")
+        old_config_file = Path("data/monitor.bak")
         if old_config_file.exists():
-            self.logger.warning("检测到旧版本的monitor.config文件，正在尝试删除...")
+            self.logger.warning("检测到旧版本的monitor.bak文件，正在尝试删除...")
             try:
                 old_config_file.unlink()
-                self.logger.info("已删除旧版本的monitor.config文件")
+                self.logger.info("已删除旧版本的monitor.bak文件")
             except Exception as e:
-                self.logger.error(f"删除旧版本monitor.config文件失败: {e}")
-                self.logger.warning("建议手动删除data/monitor.config文件后重新启动程序")
+                self.logger.error(f"删除旧版本monitor.bak文件失败: {e}")
+                self.logger.warning("建议手动删除data/monitor.bak文件后重新启动程序")
                 return
 
         if not self.monitors_file.exists():
@@ -265,7 +265,7 @@ class MonitorEngine(metaclass=Singleton):
                 monitors_data[account_id] = []
                 for monitor in monitors:
                     if hasattr(monitor, 'config'):
-                        config = monitor.config
+                        config = monitor.bak
                         monitor_data = {
                             'type': monitor.__class__.__name__.replace('Monitor', '').lower(),
                             'config': {}
@@ -380,8 +380,8 @@ class MonitorEngine(metaclass=Singleton):
         monitors_list = []
         for i, monitor in enumerate(self.monitors[account.account_id]):
             monitor_key = f"{monitor.__class__.__name__}_{i}"
-            priority = getattr(monitor.config, 'priority', 50)
-            execution_mode = getattr(monitor.config, 'execution_mode', 'merge')
+            priority = getattr(monitor.bak, 'priority', 50)
+            execution_mode = getattr(monitor.bak, 'execution_mode', 'merge')
             monitors_list.append((priority, monitor_key, monitor, execution_mode))
 
         monitors_list.sort(key=lambda x: x[0])
@@ -455,7 +455,7 @@ class MonitorEngine(metaclass=Singleton):
             await self._run_actions(message_event, account, merge_actions, merge_monitors)
 
     def _merge_monitor_actions(self, monitor, monitor_key: str, all_actions: dict):
-        config = monitor.config
+        config = monitor.bak
 
         if config.email_notify:
             all_actions['email_notify'] = True
@@ -502,7 +502,7 @@ class MonitorEngine(metaclass=Singleton):
             all_actions['reply_mode'] = reply_mode_value
 
     def _collect_actions(self, monitor, monitor_key: str) -> dict:
-        config = monitor.config
+        config = monitor.bak
         actions = {
             'email_notify': config.email_notify,
             'forward_targets': set(config.forward_targets) if config.auto_forward else set(),
@@ -778,7 +778,7 @@ class MonitorEngine(metaclass=Singleton):
             email_content += f"{i}. 【{monitor_type}监控器】\n"
 
             if hasattr(monitor, 'config'):
-                config = monitor.config
+                config = monitor.bak
 
                 if monitor_type == 'Keyword':
                     keyword = getattr(config, 'keyword', '未知')

@@ -24,7 +24,7 @@ class AccountManager(metaclass=Singleton):
         self.current_account_id: Optional[str] = None
         self.blocked_bots: set = set()
         self.logger = get_logger(__name__)
-        self.accounts_file = Path("data/accounts.json")
+        self.accounts_file = Path("data/account.json")
         
         self._load_accounts()
     
