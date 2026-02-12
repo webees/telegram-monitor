@@ -6,11 +6,11 @@ AI监控器
 import re
 from typing import List
 
-from models import MessageEvent, Account
-from models.config import AIMonitorConfig
-from services import AIService
-from .base_monitor import BaseMonitor
-from utils.logger import get_logger
+from core.model import MessageEvent, Account
+from core.model import AIMonitorConfig
+from core.ai import AIService
+from .base import BaseMonitor
+from core.log import get_logger
 
 
 class AIMonitor(BaseMonitor):

@@ -21,17 +21,17 @@ from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
 
 from core import AccountManager, MonitorEngine
-from core.account_manager import AccountFactory
-from models import Account, AccountConfig
-from models.config import KeywordConfig, FileConfig, AIMonitorConfig, MatchType, ScheduledMessageConfig
-from monitors import monitor_factory, AIMonitorBuilder
-from services import AIService
-from utils.logger import get_logger
-from .status_monitor import StatusMonitor
-from .config_wizard import ConfigWizard
+from core.account import AccountFactory
+from core.model import Account, AccountConfig
+from core.model import KeywordConfig, FileConfig, AIMonitorConfig, MatchType, ScheduledMessageConfig
+from monitor import monitor_factory, AIMonitorBuilder
+from core.ai import AIService
+from core.log import get_logger
+from .status import StatusMonitor
+from .wizard import ConfigWizard
 
 try:
-    from utils.config import config
+    from core.config import config
 except ImportError:
     config = None
 
@@ -174,8 +174,8 @@ class WebApp:
             return False
     
     def setup_static_files(self):
-        static_dir = Path("ui/static")
-        templates_dir = Path("ui/templates")
+        static_dir = Path("web/static")
+        templates_dir = Path("web/templates")
         static_dir.mkdir(exist_ok=True)
         templates_dir.mkdir(exist_ok=True)
         
@@ -438,7 +438,7 @@ class WebApp:
         async def get_config_defaults(request: Request):
             user = self.get_current_user(request)
             try:
-                from utils.config import config
+                from core.config import config
                 return {
                     "success": True,
                     "api_id": config.TG_API_ID,
@@ -890,7 +890,7 @@ class WebApp:
                 min_size_mb = float(min_size) if min_size else None
                 max_size_mb = float(max_size) if max_size else None
                 
-                from models.config import FileConfig
+                from core.model import FileConfig
                 config = FileConfig(
                     file_extension=file_extension,
                     chats=chat_ids,
@@ -1231,7 +1231,7 @@ class WebApp:
         async def create_scheduled_message(request: Request, message: Dict[str, Any]):
             user = self.get_current_user(request)
             try:
-                from models.config import ScheduledMessageConfig
+                from core.model import ScheduledMessageConfig
                 import uuid
                 
                 channel_id = message.get("channel_id", "")
@@ -1275,7 +1275,7 @@ class WebApp:
                     except ValueError:
                         raise HTTPException(status_code=400, detail="间隔时间必须是整数")
                 else:
-                    from utils.validators import validate_cron_expression
+                    from core.validator import validate_cron_expression
                     is_valid, error_msg = validate_cron_expression(schedule_expr)
                     if not is_valid:
                         raise HTTPException(status_code=400, detail=f"Cron表达式错误: {error_msg}")
@@ -1341,7 +1341,7 @@ class WebApp:
         @self.app.get("/api/cron-examples")
         async def get_cron_examples(request: Request):
             user = self.get_current_user(request)
-            from utils.validators import get_cron_examples
+            from core.validator import get_cron_examples
             return {"success": True, "examples": get_cron_examples()}
         
         @self.app.delete("/api/scheduled-messages/{job_id}")
@@ -1815,7 +1815,7 @@ class WebApp:
                                     self.logger.debug(f"类型映射: {monitor_data.get('type')} -> {monitor_type}")
                                 
                                 if monitor_type == 'keyword':
-                                    from models.config import KeywordConfig, MatchType, ReplyMode
+                                    from core.model import KeywordConfig, MatchType, ReplyMode
                                     monitor_config = KeywordConfig(
                                         keyword=config_data.get('keyword', ''),
                                         match_type=MatchType(config_data.get('match_type', 'partial')),
@@ -1850,7 +1850,7 @@ class WebApp:
                                         imported_monitors += 1
                                 
                                 elif monitor_type == 'file':
-                                    from models.config import FileConfig
+                                    from core.model import FileConfig
                                     monitor_config = FileConfig(
                                         file_extension=config_data.get('file_extension', ''),
                                         chats=config_data.get('chats', []),
@@ -1883,7 +1883,7 @@ class WebApp:
                                         imported_monitors += 1
                                     
                                 elif monitor_type == 'ai':
-                                    from models.config import AIMonitorConfig, ReplyMode
+                                    from core.model import AIMonitorConfig, ReplyMode
                                     monitor_config = AIMonitorConfig(
                                         ai_prompt=config_data.get('ai_prompt', ''),
                                         chats=config_data.get('chats', []),
@@ -1919,7 +1919,7 @@ class WebApp:
                                         imported_monitors += 1
                                 
                                 elif monitor_type == 'allmessages':
-                                    from models.config import AllMessagesConfig, ReplyMode, ReplyContentType
+                                    from core.model import AllMessagesConfig, ReplyMode, ReplyContentType
                                     monitor_config = AllMessagesConfig(
                                         chat_id=config_data.get('chat_id', 0),
                                         chats=config_data.get('chats', []),
@@ -1955,7 +1955,7 @@ class WebApp:
                                         imported_monitors += 1
                                 
                                 elif monitor_type == 'imagebutton':
-                                    from models.config import ImageButtonConfig
+                                    from core.model import ImageButtonConfig
                                     monitor_config = ImageButtonConfig(
                                         ai_prompt=config_data.get('ai_prompt', '分析图片和按钮内容'),
                                         button_keywords=config_data.get('button_keywords', []),
@@ -2010,7 +2010,7 @@ class WebApp:
                             if 'keyword_config' in account_config:
                                 for keyword, cfg in account_config['keyword_config'].items():
                                     try:
-                                        from models.config import KeywordConfig, MatchType
+                                        from core.model import KeywordConfig, MatchType
                                         monitor_config = KeywordConfig(
                                             keyword=keyword,
                                             match_type=MatchType(cfg.get('match_type', 'contains')),
@@ -2040,7 +2040,7 @@ class WebApp:
                             if 'file_extension_config' in account_config:
                                 for extension, cfg in account_config['file_extension_config'].items():
                                     try:
-                                        from models.config import FileConfig
+                                        from core.model import FileConfig
                                         monitor_config = FileConfig(
                                             file_extension=extension,
                                             chats=cfg.get('chats', []),
@@ -2075,7 +2075,7 @@ class WebApp:
                     self.logger.info(f"导入 {len(config['scheduled_messages'])} 个定时消息")
                     for msg_data in config['scheduled_messages']:
                         try:
-                            from models.config import ScheduledMessageConfig
+                            from core.model import ScheduledMessageConfig
                             import uuid
                             
                             job_id = msg_data.get('job_id') or msg_data.get('id') or str(uuid.uuid4())

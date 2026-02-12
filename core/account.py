@@ -12,9 +12,9 @@ from typing import Dict, Optional, List
 from telethon import TelegramClient, events
 from telethon.errors import SessionPasswordNeededError
 
-from models import Account, AccountConfig
-from utils.singleton import Singleton
-from utils.logger import get_logger
+from .model import Account, AccountConfig
+from .singleton import Singleton
+from .log import get_logger
 
 
 class AccountManager(metaclass=Singleton):

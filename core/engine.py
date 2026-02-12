@@ -14,10 +14,10 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from models import MessageEvent, TelegramMessage, MessageSender, Account
-from monitors import BaseMonitor, MonitorResult, monitor_factory
-from utils.singleton import Singleton
-from utils.logger import get_logger
+from .model import MessageEvent, TelegramMessage, MessageSender, Account
+from monitor import BaseMonitor, MonitorResult, monitor_factory
+from .singleton import Singleton
+from .log import get_logger
 
 
 class MonitorEngine(metaclass=Singleton):
@@ -123,7 +123,7 @@ class MonitorEngine(metaclass=Singleton):
                         config_data = monitor_data.get('config', {})
 
                         if monitor_type == 'keyword':
-                            from models.config import KeywordConfig, MatchType
+                            from .model import KeywordConfig, MatchType
                             config = KeywordConfig(
                                 keyword=config_data.get('keyword', ''),
                                 match_type=MatchType(config_data.get('match_type', 'partial')),
@@ -154,7 +154,7 @@ class MonitorEngine(metaclass=Singleton):
                                 self.add_monitor(account_id, monitor)
 
                         elif monitor_type == 'file':
-                            from models.config import FileConfig
+                            from .model import FileConfig
                             config = FileConfig(
                                 file_extension=config_data.get('file_extension', ''),
                                 chats=config_data.get('chats', []),
@@ -184,7 +184,7 @@ class MonitorEngine(metaclass=Singleton):
                                 self.logger.info(f"加载文件监控器: {config.file_extension}")
 
                         elif monitor_type == 'ai':
-                            from models.config import AIMonitorConfig
+                            from .model import AIMonitorConfig
                             config = AIMonitorConfig(
                                 ai_prompt=config_data.get('ai_prompt', ''),
                                 confidence_threshold=config_data.get('confidence_threshold', 0.7),
@@ -217,7 +217,7 @@ class MonitorEngine(metaclass=Singleton):
                                 self.logger.info(f"加载AI监控器: {config.ai_prompt[:50]}...")
 
                         elif monitor_type == 'allmessages' or monitor_type == 'all_messages':
-                            from models.config import AllMessagesConfig
+                            from .model import AllMessagesConfig
                             config = AllMessagesConfig(
                                 chat_id=config_data.get('chat_id', 0),
                                 chats=config_data.get('chats', []),
@@ -570,7 +570,7 @@ class MonitorEngine(metaclass=Singleton):
 
                 if target_ids:
                     if actions['enhanced_forward']:
-                        from services import EnhancedForwardService
+                        from .forward import EnhancedForwardService
                         service = EnhancedForwardService()
                         await service.forward_message_enhanced(
                             message=message,
@@ -609,7 +609,7 @@ class MonitorEngine(metaclass=Singleton):
                 reply_content_type = actions.get('reply_content_type', 'custom')
 
                 if reply_content_type == 'ai' and actions.get('ai_reply_prompt'):
-                    from services import AIService
+                    from .ai import AIService
                     ai_service = AIService()
 
                     if ai_service.is_configured():
@@ -1014,7 +1014,7 @@ class MonitorEngine(metaclass=Singleton):
                 self.logger.error(f"定时消息配置不完整: account_id={account_id}, target_id={target_id}")
                 return
 
-            from core.account_manager import AccountManager
+            from .account import AccountManager
             account_manager = AccountManager()
             account = account_manager.get_account(account_id)
 
@@ -1024,7 +1024,7 @@ class MonitorEngine(metaclass=Singleton):
 
             if message_config.get('use_ai', False) and message_config.get('ai_prompt'):
                 try:
-                    from services import AIService
+                    from .ai import AIService
                     ai_service = AIService()
 
                     if ai_service.is_configured():
@@ -1197,7 +1197,7 @@ class MonitorEngine(metaclass=Singleton):
     async def _send_email_notification(self, subject: str, content: str, email_addresses: list = None):
         if not email_addresses:
             try:
-                from utils.config import config
+                from .config import config
                 default_emails = []
                 if hasattr(config, 'EMAIL_TO') and config.EMAIL_TO:
                     default_emails = [config.EMAIL_TO]
@@ -1218,7 +1218,7 @@ class MonitorEngine(metaclass=Singleton):
             from email.mime.text import MIMEText
             from email.mime.multipart import MIMEMultipart
             from email.header import Header
-            from utils.config import config
+            from .config import config
 
             smtp_host = getattr(config, 'EMAIL_SMTP_SERVER', None) or getattr(config, 'SMTP_HOST',
                                                                               None) or 'smtp.qq.com'

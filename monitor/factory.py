@@ -5,13 +5,13 @@
 
 from typing import Dict, Type, Optional, Any
 
-from models.config import (
+from core.model import (
     BaseMonitorConfig, KeywordConfig, FileConfig, 
     ButtonConfig, AllMessagesConfig, AIMonitorConfig, ImageButtonConfig
 )
-from .base_monitor import BaseMonitor
-from .keyword_monitor import KeywordMonitor
-from .ai_monitor import AIMonitor
+from .base import BaseMonitor
+from .keyword import KeywordMonitor
+from .ai import AIMonitor
 
 
 class MonitorFactory:
@@ -24,10 +24,10 @@ class MonitorFactory:
         self._monitor_registry[KeywordConfig] = KeywordMonitor
         self._monitor_registry[AIMonitorConfig] = AIMonitor
         
-        from .file_monitor import FileMonitor
-        from .button_monitor import ButtonMonitor
-        from .all_messages_monitor import AllMessagesMonitor
-        from .image_button_monitor import ImageButtonMonitor
+        from .file import FileMonitor
+        from .button import ButtonMonitor
+        from .all import AllMessagesMonitor
+        from .image_button import ImageButtonMonitor
         
         self._monitor_registry[FileConfig] = FileMonitor
         self._monitor_registry[ButtonConfig] = ButtonMonitor

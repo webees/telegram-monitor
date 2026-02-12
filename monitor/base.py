@@ -9,9 +9,9 @@ from typing import Optional, List, Dict, Any, Union
 from dataclasses import dataclass
 from enum import Enum
 
-from models import TelegramMessage, MessageEvent, Account
-from models.config import BaseMonitorConfig
-from utils.logger import get_logger
+from core.model import TelegramMessage, MessageEvent, Account
+from core.model import BaseMonitorConfig
+from core.log import get_logger
 
 
 class MonitorResult(Enum):

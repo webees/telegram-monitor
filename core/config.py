@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
-from utils.logger import get_logger
+from .log import get_logger
 
 logger = get_logger(__name__)
 

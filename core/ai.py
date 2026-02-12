@@ -8,9 +8,9 @@ import threading
 from typing import Optional, List, Dict, Any
 from openai import OpenAI
 
-from utils.singleton import Singleton
-from utils.logger import get_logger
-from utils.config import config
+from .singleton import Singleton
+from .log import get_logger
+from .config import config
 
 
 class AIService(metaclass=Singleton):

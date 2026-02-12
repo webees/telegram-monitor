@@ -10,15 +10,15 @@ from enum import Enum
 import time
 import uuid
 
-from models.config import (
+from core.model import (
     KeywordConfig, FileConfig, AIMonitorConfig,
     MatchType, ButtonConfig, AllMessagesConfig, MonitorMode, ImageButtonConfig,
     ReplyMode, ReplyContentType
 )
-from monitors import monitor_factory, AIMonitorBuilder
-from services import AIService
-from utils.logger import get_logger
-from utils.singleton import Singleton
+from monitor import monitor_factory, AIMonitorBuilder
+from core.ai import AIService
+from core.log import get_logger
+from core.singleton import Singleton
 
 
 class WizardStepType(Enum):
@@ -1211,7 +1211,7 @@ class ConfigWizard(metaclass=Singleton):
                     field_copy["value"] = session.collected_data[field_name]
                 elif not current_value or current_value.strip() == "":
                     try:
-                        from utils.config import config as env_config
+                        from core.config import config as env_config
                         default_email = getattr(env_config, 'EMAIL_TO', None) or getattr(env_config, 'email_to', None)
                         if default_email and default_email.strip():
                             field_copy["value"] = str(default_email).strip()

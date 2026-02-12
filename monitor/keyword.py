@@ -8,9 +8,9 @@ import asyncio
 import random
 from typing import List
 
-from models import MessageEvent, Account
-from models.config import KeywordConfig, MatchType
-from .base_monitor import BaseMonitor
+from core.model import MessageEvent, Account
+from core.model import KeywordConfig, MatchType
+from .base import BaseMonitor
 
 
 class KeywordMonitor(BaseMonitor):

@@ -13,17 +13,17 @@ import argparse
 from typing import Optional
 from fastapi import Request
 
-from ui.web_app import WebApp
-from ui.status_monitor import StatusMonitor
+from web.app import WebApp
+from web.status import StatusMonitor
 from core import AccountManager, MonitorEngine
-from utils.logger import get_logger
+from core.log import get_logger
 
 
 class TelegramMonitorWebApp:
     
     def __init__(self, host: Optional[str] = None, port: Optional[int] = None, skip_config_check: bool = False):
         try:
-            from utils.config import config
+            from core.config import config
             self.config = config
         except Exception as e:
             print(f"⚠️  配置模块加载失败: {e}")
@@ -139,7 +139,7 @@ class TelegramMonitorWebApp:
 
 def check_config_only():
     try:
-        from utils.config import config
+        from core.config import config
         print("✅ 配置模块加载成功")
         
         if config.is_telegram_configured():
@@ -177,7 +177,7 @@ def main():
     
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
-        from utils.logger import get_default_logger
+        from core.log import get_default_logger
         default_logger = get_default_logger()
         default_logger.setLevel(logging.DEBUG)
         for handler in default_logger.handlers:
@@ -227,8 +227,8 @@ def main():
         print(f"启动失败: {e}")
         print("\n💡 提示:")
         print("1. 检查是否已正确配置 .env 文件")
-        print("2. 运行 'python web_app_launcher.py --check-config' 检查配置")
-        print("3. 运行 'python web_app_launcher.py --check-imports' 检查模块导入")
+        print("2. 运行 'python app.py --check-config' 检查配置")
+        print("3. 运行 'python app.py --check-imports' 检查模块导入")
         print("4. 查看日志获取详细错误信息")
         sys.exit(1)
 

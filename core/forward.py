@@ -11,9 +11,9 @@ from typing import Optional, List, Dict, Any
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError, ChatForwardsRestrictedError, MediaEmptyError
 
-from models import TelegramMessage, Account
-from utils.singleton import Singleton
-from utils.logger import get_logger
+from .model import TelegramMessage, Account
+from .singleton import Singleton
+from .log import get_logger
 
 
 class EnhancedForwardService(metaclass=Singleton):

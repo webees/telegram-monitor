@@ -31,7 +31,7 @@ def validate_api_credentials(api_id: Union[str, int], api_hash: str) -> bool:
     if not api_hash or not isinstance(api_hash, str):
         return False
     
-    return len(api_hash) == 32 and re.match(r'^[a-fA-F0-9]+$', api_hash)
+    return len(api_hash) == 32 and bool(re.match(r'^[a-fA-F0-9]+$', api_hash))
 
 
 def validate_cron_expression(cron: str) -> tuple[bool, str]:

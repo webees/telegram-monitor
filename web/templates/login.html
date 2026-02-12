@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录</title>
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0
+        }
+
+        body {
+            display: grid;
+            place-items: center
+        }
+
+        form {
+            width: 90vw;
+            max-width: 280px
+        }
+
+        input,
+        button {
+            width: 100%;
+            padding: 8px;
+            margin: 4px 0;
+            box-sizing: border-box;
+            font-size: 16px
+        }
+
+        .e {
+            color: red;
+            min-height: 1.5em
+        }
+    </style>
+</head>
+
+<body>
+    {% raw %}
+    <form id="a" @submit.prevent="s">
+        <p class="e">{{e}}&nbsp;</p>
+        <input v-model="u" placeholder="用户名" required autofocus>
+        <input v-model="p" type="password" placeholder="密码" required>
+        <button :disabled="l">{{l?'...':'登录'}}</button>
+    </form>
+    {% endraw %}
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script>
+        Vue.createApp({
+            data: () => ({ u: '', p: '', e: '', l: false }),
+            methods: {
+                async s() {
+                    this.l = true; this.e = '';
+                    const b = new FormData; b.append('username', this.u); b.append('password', this.p);
+                    try {
+                        const r = await fetch('/login', { method: 'POST', body: b });
+                        if (r.ok) return location.href = '/';
+                        this.e = (await r.json()).detail || '登录失败';
+                    } catch { this.e = '网络错误' }
+                    finally { this.l = false }
+                }
+            }
+        }).mount('#a')
+    </script>
+</body>
+
+</html>

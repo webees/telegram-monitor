@@ -3,9 +3,9 @@
 """
 
 from typing import List
-from models import MessageEvent, Account
-from models.config import AllMessagesConfig
-from .base_monitor import BaseMonitor
+from core.model import MessageEvent, Account
+from core.model import AllMessagesConfig
+from .base import BaseMonitor
 
 
 class AllMessagesMonitor(BaseMonitor):
@@ -34,7 +34,7 @@ class AllMessagesMonitor(BaseMonitor):
     
     def get_dynamic_reply_content(self) -> List[str]:
         if hasattr(self.all_messages_config, 'reply_content_type'):
-            from models.config import ReplyContentType
+            from core.model import ReplyContentType
             
             if (hasattr(self.all_messages_config.reply_content_type, 'value') 
                 and self.all_messages_config.reply_content_type.value == 'ai') or \

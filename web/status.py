@@ -16,8 +16,8 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 
 from core import AccountManager, MonitorEngine
-from utils.singleton import Singleton
-from utils.logger import get_logger
+from core.singleton import Singleton
+from core.log import get_logger
 
 
 @dataclass

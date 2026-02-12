@@ -27,4 +27,4 @@ EXPOSE 8000
 
 # 运行启动脚本
 # --public 参数通常用于允许外部访问 Web UI
-CMD ["python", "web_app_launcher.py"]
+CMD ["python", "app.py"]

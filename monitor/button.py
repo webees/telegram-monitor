@@ -5,9 +5,9 @@
 
 from typing import List
 
-from models import MessageEvent, Account
-from models.config import ButtonConfig, MonitorMode
-from .base_monitor import BaseMonitor
+from core.model import MessageEvent, Account
+from core.model import ButtonConfig, MonitorMode
+from .base import BaseMonitor
 
 
 class ButtonMonitor(BaseMonitor):
@@ -88,7 +88,7 @@ class ButtonMonitor(BaseMonitor):
             buttons_text = "\n".join(message.button_texts)
             full_prompt = f"{prompt}\n消息内容: {message.text}\n按钮选项:\n{buttons_text}"
 
-            from services import AIService
+            from core.ai import AIService
             ai_service = AIService()
 
             if not ai_service.is_configured():
