@@ -40,9 +40,11 @@ sessions/
 .DS_Store
 Thumbs.db
 
-# Test files
+# Test files (allow tests/ dir)
 test_*.py
 *_test.py
+!tests/
+!tests/**
 temp_*.py
 
 # Backup files
