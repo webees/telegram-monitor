@@ -281,13 +281,21 @@ class MonitorEngine(metaclass=Singleton):
 
                         monitors_data[account_id].append(monitor_data)
 
-            with open(self.monitors_file, 'w', encoding='utf-8') as f:
-                json.dump(monitors_data, f, indent=2, ensure_ascii=False)
-
-            self.logger.info(f"已保存监控器配置")
+            import threading
+            import copy
+            
+            def _write_file():
+                try:
+                    with open(self.monitors_file, 'w', encoding='utf-8') as f:
+                        json.dump(monitors_data, f, indent=2, ensure_ascii=False)
+                    self.logger.info(f"已保存监控器配置")
+                except Exception as e:
+                    self.logger.error(f"写入监控器文件失败: {e}")
+                    
+            threading.Thread(target=_write_file, daemon=True).start()
 
         except Exception as e:
-            self.logger.error(f"保存监控器文件失败: {e}")
+            self.logger.error(f"序列化监控器配置失败: {e}")
 
     async def start(self):
         try:
@@ -1170,14 +1178,25 @@ class MonitorEngine(metaclass=Singleton):
     def _save_scheduled_messages(self):
         try:
             self.scheduled_messages_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            import threading
+            import copy
+            
+            # Deep copy to avoid race conditions with main thread modifications
+            messages_copy = copy.deepcopy(self.scheduled_messages)
 
-            with open(self.scheduled_messages_file, 'w', encoding='utf-8') as f:
-                json.dump(self.scheduled_messages, f, indent=2, ensure_ascii=False)
+            def _write_file():
+                try:
+                    with open(self.scheduled_messages_file, 'w', encoding='utf-8') as f:
+                        json.dump(messages_copy, f, indent=2, ensure_ascii=False)
+                    self.logger.info(f"已保存 {len(messages_copy)} 条定时消息")
+                except Exception as e:
+                    self.logger.error(f"写入定时消息文件失败: {e}")
 
-            self.logger.info(f"已保存 {len(self.scheduled_messages)} 条定时消息")
+            threading.Thread(target=_write_file, daemon=True).start()
 
         except Exception as e:
-            self.logger.error(f"保存定时消息文件失败: {e}")
+            self.logger.error(f"保存定时消息任务失败: {e}")
 
     def _load_scheduled(self):
         if not self.scheduled_messages_file.exists():
@@ -1213,58 +1232,61 @@ class MonitorEngine(metaclass=Singleton):
                 self.logger.error(f"读取邮件配置失败: {e}")
                 return
 
-        try:
-            import smtplib
-            from email.mime.text import MIMEText
-            from email.mime.multipart import MIMEMultipart
-            from email.header import Header
-            from .config import config
-
-            smtp_host = getattr(config, 'EMAIL_SMTP_SERVER', None) or getattr(config, 'SMTP_HOST',
-                                                                              None) or 'smtp.qq.com'
-            smtp_port = getattr(config, 'EMAIL_SMTP_PORT', None) or getattr(config, 'SMTP_PORT', None) or 465
-            email_from = getattr(config, 'EMAIL_FROM', None) or getattr(config, 'EMAIL_USERNAME', None)
-            email_password = getattr(config, 'EMAIL_PASSWORD', None)
-
+        def _do_send():
             try:
-                smtp_port = int(smtp_port)
-            except (ValueError, TypeError):
-                smtp_port = 465
+                import smtplib
+                from email.mime.text import MIMEText
+                from email.mime.multipart import MIMEMultipart
+                from email.header import Header
+                from .config import config
 
-            self.logger.debug(
-                f"邮件配置读取: SMTP={smtp_host}:{smtp_port}, FROM={email_from}, PASSWORD={'已配置' if email_password else '未配置'}")
+                smtp_host = getattr(config, 'EMAIL_SMTP_SERVER', None) or getattr(config, 'SMTP_HOST',
+                                                                                  None) or 'smtp.qq.com'
+                smtp_port = getattr(config, 'EMAIL_SMTP_PORT', None) or getattr(config, 'SMTP_PORT', None) or 465
+                email_from = getattr(config, 'EMAIL_FROM', None) or getattr(config, 'EMAIL_USERNAME', None)
+                email_password = getattr(config, 'EMAIL_PASSWORD', None)
 
-            if not email_from or not email_password:
-                missing_fields = []
-                if not email_from: missing_fields.append('EMAIL_FROM 或 EMAIL_USERNAME')
-                if not email_password: missing_fields.append('EMAIL_PASSWORD')
+                try:
+                    smtp_port = int(smtp_port)
+                except (ValueError, TypeError):
+                    smtp_port = 465
 
-                self.logger.warning(f"邮件服务器配置不完整，缺少字段: {', '.join(missing_fields)}")
-                self.logger.warning("请在.env文件中配置：EMAIL_FROM=your@email.com 和 EMAIL_PASSWORD=your_password")
-                return
+                self.logger.debug(
+                    f"邮件配置读取: SMTP={smtp_host}:{smtp_port}, FROM={email_from}, PASSWORD={'已配置' if email_password else '未配置'}")
 
-            msg = MIMEMultipart()
-            msg['From'] = email_from
-            msg['To'] = ', '.join(email_addresses)
-            msg['Subject'] = Header(subject, 'utf-8')
+                if not email_from or not email_password:
+                    missing_fields = []
+                    if not email_from: missing_fields.append('EMAIL_FROM 或 EMAIL_USERNAME')
+                    if not email_password: missing_fields.append('EMAIL_PASSWORD')
 
-            msg.attach(MIMEText(content, 'plain', 'utf-8'))
+                    self.logger.warning(f"邮件服务器配置不完整，缺少字段: {', '.join(missing_fields)}")
+                    self.logger.warning("请在.env文件中配置：EMAIL_FROM=your@email.com 和 EMAIL_PASSWORD=your_password")
+                    return
 
-            server = smtplib.SMTP_SSL(smtp_host, int(smtp_port))
-            server.login(email_from, email_password)
+                msg = MIMEMultipart()
+                msg['From'] = email_from
+                msg['To'] = ', '.join(email_addresses)
+                msg['Subject'] = Header(subject, 'utf-8')
 
-            for email in email_addresses:
-                server.sendmail(email_from, [email], msg.as_string())
+                msg.attach(MIMEText(content, 'plain', 'utf-8'))
 
-            server.quit()
+                server = smtplib.SMTP_SSL(smtp_host, int(smtp_port))
+                server.login(email_from, email_password)
 
-            self.logger.debug(f"邮件通知发送成功，接收者: {', '.join(email_addresses)}")
-            self.logger.debug(f"使用配置: {smtp_host}:{smtp_port}, 发件人: {email_from}")
+                for email in email_addresses:
+                    server.sendmail(email_from, [email], msg.as_string())
 
-        except Exception as e:
-            self.logger.error(f"发送邮件通知失败: {e}")
-            self.logger.error(f"邮件配置：SMTP_HOST={smtp_host}, "
-                              f"SMTP_PORT={smtp_port}, EMAIL_FROM={email_from}")
+                server.quit()
+
+                self.logger.debug(f"邮件通知发送成功，接收者: {', '.join(email_addresses)}")
+                self.logger.debug(f"使用配置: {smtp_host}:{smtp_port}, 发件人: {email_from}")
+
+            except Exception as e:
+                self.logger.error(f"发送邮件通知失败: {e}")
+                self.logger.error(f"邮件配置：SMTP_HOST={smtp_host}, "
+                                  f"SMTP_PORT={smtp_port}, EMAIL_FROM={email_from}")
+                                  
+        await asyncio.to_thread(_do_send)
 
     def get_system_stats(self) -> dict:
         total_monitors = sum(len(monitors) for monitors in self.monitors.values())

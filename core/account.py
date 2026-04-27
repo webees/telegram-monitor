@@ -92,13 +92,20 @@ class AccountManager(metaclass=Singleton):
                 }
                 accounts_data.append(account_data)
             
-            with open(self.accounts_file, 'w', encoding='utf-8') as f:
-                json.dump({'accounts': accounts_data}, f, indent=2, ensure_ascii=False)
+            import threading
             
-            self.logger.info(f"已保存 {len(accounts_data)} 个账号")
+            def _write_file():
+                try:
+                    with open(self.accounts_file, 'w', encoding='utf-8') as f:
+                        json.dump({'accounts': accounts_data}, f, indent=2, ensure_ascii=False)
+                    self.logger.info(f"已保存 {len(accounts_data)} 个账号")
+                except Exception as e:
+                    self.logger.error(f"写入账号文件失败: {e}")
+            
+            threading.Thread(target=_write_file, daemon=True).start()
             
         except Exception as e:
-            self.logger.error(f"保存账号文件失败: {e}")
+            self.logger.error(f"序列化账号文件失败: {e}")
     
     async def connect_account(self, account_id: str) -> bool:
         account = self.get_account(account_id)
@@ -262,13 +269,16 @@ class AccountManager(metaclass=Singleton):
             await client.send_code_request(phone)
             self.logger.info('验证码已发送到您的Telegram账号')
             
-            code = input('请输入您收到的验证码: ').strip()
+            import asyncio
+            code = await asyncio.to_thread(input, '请输入您收到的验证码: ')
+            code = code.strip()
             
             try:
                 await client.sign_in(phone, code)
             except SessionPasswordNeededError:
                 self.logger.info('检测到两步验证，需要输入密码')
-                password = input('请输入您的两步验证密码: ').strip()
+                password = await asyncio.to_thread(input, '请输入您的两步验证密码: ')
+                password = password.strip()
                 await client.sign_in(password=password)
             
             return True

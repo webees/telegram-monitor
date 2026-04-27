@@ -1528,7 +1528,7 @@ class WebApp:
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.app.get("/api/logs")
-        async def get_logs(request: Request, limit: int = 1000, since: str = ""):
+        def get_logs(request: Request, limit: int = 1000, since: str = ""):
             user = self.get_current_user(request)
             try:
                 import logging
