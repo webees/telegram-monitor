@@ -107,6 +107,8 @@ class TelegramMonitorWebApp:
                 log_level="error",
                 access_log=False,
                 reload=self.config and self.config.WEB_DEBUG,
+                proxy_headers=True,
+                forwarded_allow_ips="*",
                 timeout_keep_alive=5,
                 timeout_graceful_shutdown=10
             )
