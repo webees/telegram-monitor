@@ -47,7 +47,7 @@
         <button :disabled="l">{{l?'...':'登录'}}</button>
     </form>
     {% endraw %}
-    <script src="/static/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.js"></script>
     <script>
         Vue.createApp({
             data: () => ({ u: '', p: '', e: '', l: false }),
