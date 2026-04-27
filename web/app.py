@@ -101,10 +101,19 @@ class WebApp:
     def __init__(self):
         self.app = FastAPI(title="Telegram监控系统", description="智能化Telegram消息监控平台")
         
+        # 生成稳定的 secret_key（基于配置的密码，避免每次重启后会话失效）
+        if config and hasattr(config, 'WEB_PASSWORD') and config.WEB_PASSWORD:
+            import hashlib
+            stable_secret = hashlib.sha256(f"session-{config.WEB_PASSWORD}".encode()).hexdigest()
+        else:
+            stable_secret = secrets.token_urlsafe(32)
+        
         self.app.add_middleware(
             SessionMiddleware,
-            secret_key=secrets.token_urlsafe(32),
-            max_age=86400
+            secret_key=stable_secret,
+            max_age=86400,
+            https_only=True,     # HTTPS 反向代理下必须设置，否则浏览器不发送 cookie
+            same_site="none",    # 配合 https_only 使用，确保跨域/重定向请求携带 cookie
         )
         
         self.account_manager = AccountManager()
