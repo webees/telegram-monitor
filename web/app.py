@@ -112,8 +112,7 @@ class WebApp:
             SessionMiddleware,
             secret_key=stable_secret,
             max_age=86400,
-            https_only=True,     # HTTPS 反向代理下必须设置，否则浏览器不发送 cookie
-            same_site="none",    # 配合 https_only 使用，确保跨域/重定向请求携带 cookie
+            same_site="lax"
         )
         
         self.account_manager = AccountManager()
