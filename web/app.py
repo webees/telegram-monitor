@@ -1541,10 +1541,11 @@ class WebApp:
                     try:
                         since_time = datetime.fromisoformat(since) if since else datetime.now() - timedelta(hours=24)
                         
+                        # Use deque to only keep the last `limit` lines in memory
+                        # instead of reading the entire file
+                        from collections import deque
                         with open(log_file, 'r', encoding='utf-8') as f:
-                            lines = f.readlines()
-                            
-                        recent_lines = lines[-limit:] if len(lines) > limit else lines
+                            recent_lines = deque(f, maxlen=limit)
                         
                         for line in recent_lines:
                             if line.strip():
@@ -1712,9 +1713,18 @@ class WebApp:
                         export_data['monitors'][account.account_id] = []
                         for monitor in monitors:
                             config = monitor.config
+                            # Serialize config, converting Enum values to strings
+                            config_data = {}
+                            for attr, value in config.__dict__.items():
+                                if hasattr(value, 'value'):  # Enum
+                                    config_data[attr] = value.value
+                                elif isinstance(value, (str, int, float, bool, list, dict, type(None))):
+                                    config_data[attr] = value
+                                else:
+                                    config_data[attr] = str(value)
                             monitor_data = {
                                 'type': monitor.__class__.__name__,
-                                'config': config.dict() if hasattr(config, 'dict') else config.__dict__
+                                'config': config_data
                             }
                             export_data['monitors'][account.account_id].append(monitor_data)
                 
@@ -2097,7 +2107,7 @@ class WebApp:
                             if target_id:
                                 try:
                                     target_id = int(target_id)
-                                except:
+                                except (ValueError, TypeError):
                                     self.logger.warning(f"无效的目标ID: {target_id}")
                                     continue
                             
@@ -2301,7 +2311,7 @@ class WebApp:
         for websocket in connections_copy:
             try:
                 await websocket.send_json(message)
-            except:
+            except Exception:
                 disconnected.append(websocket)
 
         for websocket in disconnected:

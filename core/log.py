@@ -4,6 +4,7 @@
 """
 
 import logging
+import logging.handlers
 import sys
 import threading
 from pathlib import Path
@@ -36,7 +37,11 @@ def setup_logger(
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
         
-        file_handler = logging.FileHandler(log_file, encoding='utf-8')
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_file, encoding='utf-8',
+            maxBytes=10 * 1024 * 1024,  # 10MB
+            backupCount=3
+        )
         file_handler.setLevel(level)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
@@ -107,7 +112,11 @@ def setup_root_logger():
         log_path = Path('data/log/app.log')
         log_path.parent.mkdir(parents=True, exist_ok=True)
         
-        file_handler = logging.FileHandler('data/log/app.log', encoding='utf-8')
+        file_handler = logging.handlers.RotatingFileHandler(
+            'data/log/app.log', encoding='utf-8',
+            maxBytes=10 * 1024 * 1024,  # 10MB
+            backupCount=3
+        )
         file_handler.setLevel(logging.INFO)
         file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(file_formatter)

@@ -15,7 +15,10 @@ class AllMessagesMonitor(BaseMonitor):
         self.all_messages_config = config
     
     async def _match(self, message_event: MessageEvent, account: Account) -> bool:
-        self.logger.info(f"[全量监控] 处理消息 - 来自: {message_event.message.sender.full_name} ({message_event.message.sender.id})")
+        sender = message_event.message.sender
+        sender_name = sender.full_name if sender else '未知'
+        sender_id = sender.id if sender else 'N/A'
+        self.logger.info(f"[全量监控] 处理消息 - 来自: {sender_name} ({sender_id})")
         self.logger.info(f"[全量监控] 群组: 聊天ID {message_event.message.chat_id}")
         self.logger.info(f"[全量监控] 内容: {message_event.message.text[:100] if message_event.message.text else '(非文本消息)'}")
         return True

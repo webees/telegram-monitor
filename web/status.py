@@ -11,6 +11,7 @@ import os
 import logging
 import subprocess
 import shutil
+from collections import deque
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
@@ -70,12 +71,13 @@ class StatusMonitor(metaclass=Singleton):
         self.forward_success_count = 0
         self.forward_fail_count = 0
         self.ai_call_count = 0
-        self.processing_times: List[float] = []
+        self.processing_times: deque = deque(maxlen=100)
         
         self.last_network_stats = None
         self.system_platform = platform.system().lower()
         
-        self.message_timestamps: List[float] = []
+        # Cap at 3600 entries (~1 hour at 1 msg/sec)
+        self.message_timestamps: deque = deque(maxlen=3600)
         
         self._init_system()
         
@@ -132,11 +134,6 @@ class StatusMonitor(metaclass=Singleton):
         
         if processing_time_ms is not None:
             self.processing_times.append(processing_time_ms)
-            if len(self.processing_times) > 100:
-                self.processing_times.pop(0)
-        
-        cutoff_time = current_time - 3600
-        self.message_timestamps = [ts for ts in self.message_timestamps if ts > cutoff_time]
     
     def record_forward_result(self, success: bool):
         if success:

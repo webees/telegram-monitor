@@ -6,6 +6,7 @@
 import json
 import asyncio
 import pytz
+from collections import deque
 from pathlib import Path
 from typing import List, Dict, Set, Optional
 from datetime import datetime
@@ -24,7 +25,8 @@ class MonitorEngine(metaclass=Singleton):
 
     def __init__(self):
         self.monitors: Dict[str, List[BaseMonitor]] = {}
-        self.processed_messages: Set[str] = set()
+        self.processed_messages: deque = deque(maxlen=5000)
+        self.processed_messages_set: set = set()
         self.scheduled_messages: List[Dict] = []
         self.logger = get_logger(__name__)
         self.monitors_file = Path("data/monitor.json")
@@ -273,7 +275,10 @@ class MonitorEngine(metaclass=Singleton):
 
                         for attr in dir(config):
                             if not attr.startswith('_'):
-                                value = getattr(config, attr)
+                                try:
+                                    value = getattr(config, attr)
+                                except Exception:
+                                    continue
                                 if not callable(value) and isinstance(value, (str, int, float, bool, list, dict)):
                                     monitor_data['config'][attr] = value
                                 elif hasattr(value, 'value'):
@@ -284,10 +289,13 @@ class MonitorEngine(metaclass=Singleton):
             import threading
             import copy
             
+            # Deep copy to avoid race conditions with main thread modifications
+            monitors_data_copy = copy.deepcopy(monitors_data)
+            
             def _write_file():
                 try:
                     with open(self.monitors_file, 'w', encoding='utf-8') as f:
-                        json.dump(monitors_data, f, indent=2, ensure_ascii=False)
+                        json.dump(monitors_data_copy, f, indent=2, ensure_ascii=False)
                     self.logger.info(f"已保存监控器配置")
                 except Exception as e:
                     self.logger.error(f"写入监控器文件失败: {e}")
@@ -863,25 +871,27 @@ class MonitorEngine(metaclass=Singleton):
 
         class PseudoSender:
             def __init__(self, event):
-                self.id = event.chat_id
+                self.id = event.chat_id or 0
                 self.username = ""
-                self.first_name = event.message.post_author or "未知"
+                post_author = getattr(event.message, 'post_author', None)
+                self.first_name = post_author or "未知"
                 self.last_name = ""
                 self.bot = False
-                self.title = event.message.post_author
+                self.title = post_author
 
         return PseudoSender(event)
 
     def _is_message_processed(self, message_event: MessageEvent) -> bool:
-        return message_event.unique_id in self.processed_messages
+        return message_event.unique_id in self.processed_messages_set
 
     def _mark_message_processed(self, message_event: MessageEvent):
-        self.processed_messages.add(message_event.unique_id)
-
-        if len(self.processed_messages) > 10000:
-            old_messages = list(self.processed_messages)[:5000]
-            for msg_id in old_messages:
-                self.processed_messages.discard(msg_id)
+        msg_id = message_event.unique_id
+        if len(self.processed_messages) >= self.processed_messages.maxlen:
+            # Remove oldest from the lookup set when deque evicts
+            oldest = self.processed_messages[0]
+            self.processed_messages_set.discard(oldest)
+        self.processed_messages.append(msg_id)
+        self.processed_messages_set.add(msg_id)
 
     def _log_processing_results(self, message_event: MessageEvent, results: List):
         matched_count = 0
@@ -914,7 +924,7 @@ class MonitorEngine(metaclass=Singleton):
         return {
             "total_accounts": len(self.monitors),
             "total_monitors": sum(len(monitors) for monitors in self.monitors.values()),
-            "processed_messages": len(self.processed_messages)
+            "processed_messages": len(self.processed_messages_set)
         }
 
     def add_scheduled_message(self, config):
@@ -1010,7 +1020,7 @@ class MonitorEngine(metaclass=Singleton):
                 self.logger.info(f"定时消息达到执行次数限制，停止执行: {job_id}")
                 try:
                     self.scheduler.remove_job(job_id)
-                except:
+                except Exception:
                     pass
                 return
 
