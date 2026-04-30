@@ -989,12 +989,12 @@
                                 <i class="bi bi-${monitor.config.active !== false ? 'pause' : 'play'}"></i>
                             </button>
                             <button class="action-btn view" 
-                                    onclick="viewMonitorConfig('${monitor.key}', '${encodeURIComponent(JSON.stringify(monitor.config))}')" 
+                                    onclick="viewMonitorConfig('${monitor.key}', '${encodeURIComponent(JSON.stringify(monitor.config)).replace(/'/g, "%27")}')" 
                                     title="查看配置">
                                 <i class="bi bi-eye"></i>
                             </button>
                             <button class="action-btn edit" 
-                                    onclick="editMonitor('${monitor.monitor_type}', '${monitor.key}', '${encodeURIComponent(JSON.stringify(monitor.config))}', '${monitor.account_id}')" 
+                                    onclick="editMonitor('${monitor.monitor_type}', '${monitor.key}', '${encodeURIComponent(JSON.stringify(monitor.config)).replace(/'/g, "%27")}', '${monitor.account_id}')" 
                                     title="编辑">
                                 <i class="bi bi-pencil"></i>
                             </button>

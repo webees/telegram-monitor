@@ -695,7 +695,7 @@ class WebApp:
                         generated_key = f"{monitor.__class__.__name__}_{i}"
                         
                         if generated_key == monitor_key:
-                            monitor.bak.active = active
+                            monitor.config.active = active
                             self.monitor_engine._save_monitors()
                             await self.broadcast_status_update()
                             
@@ -1711,7 +1711,7 @@ class WebApp:
                     if monitors:
                         export_data['monitors'][account.account_id] = []
                         for monitor in monitors:
-                            config = monitor.bak
+                            config = monitor.config
                             monitor_data = {
                                 'type': monitor.__class__.__name__,
                                 'config': config.dict() if hasattr(config, 'dict') else config.__dict__
@@ -2205,70 +2205,70 @@ class WebApp:
         for i, monitor in enumerate(monitors):
             try:
                 config_dict = {}
-                if hasattr(monitor, 'config') and monitor.bak:
+                if hasattr(monitor, 'config') and monitor.config:
                     config_dict = {
                         "monitor_type": monitor.__class__.__name__,
                         "type": monitor.__class__.__name__,
-                        "chats": getattr(monitor.bak, 'chats', []),
-                        "email_notify": getattr(monitor.bak, 'email_notify', False),
-                        "auto_forward": getattr(monitor.bak, 'auto_forward', False),
-                        "forward_targets": getattr(monitor.bak, 'forward_targets', []),
-                        "enhanced_forward": getattr(monitor.bak, 'enhanced_forward', False),
-                        "active": getattr(monitor.bak, 'active', True),
-                        "priority": getattr(monitor.bak, 'priority', 50),
-                        "execution_mode": getattr(monitor.bak, 'execution_mode', 'merge'),
-                        "max_executions": getattr(monitor.bak, 'max_executions', None),
-                        "execution_count": getattr(monitor.bak, 'execution_count', 0),
-                        "users": getattr(monitor.bak, 'users', []),
-                        "user_option": getattr(monitor.bak, 'user_option', None),
-                        "blocked_users": getattr(monitor.bak, 'blocked_users', []),
-                        "blocked_channels": getattr(monitor.bak, 'blocked_channels', []),
-                        "blocked_bots": getattr(monitor.bak, 'blocked_bots', []),
-                        "bot_ids": getattr(monitor.bak, 'bot_ids', []),
-                        "channel_ids": getattr(monitor.bak, 'channel_ids', []),
-                        "group_ids": getattr(monitor.bak, 'group_ids', []),
-                        "reply_enabled": getattr(monitor.bak, 'reply_enabled', False),
-                        "reply_texts": getattr(monitor.bak, 'reply_texts', []),
-                        "reply_delay_min": getattr(monitor.bak, 'reply_delay_min', 0),
-                        "reply_delay_max": getattr(monitor.bak, 'reply_delay_max', 0),
-                        "ai_reply_prompt": getattr(monitor.bak, 'ai_reply_prompt', '')
+                        "chats": getattr(monitor.config, 'chats', []),
+                        "email_notify": getattr(monitor.config, 'email_notify', False),
+                        "auto_forward": getattr(monitor.config, 'auto_forward', False),
+                        "forward_targets": getattr(monitor.config, 'forward_targets', []),
+                        "enhanced_forward": getattr(monitor.config, 'enhanced_forward', False),
+                        "active": getattr(monitor.config, 'active', True),
+                        "priority": getattr(monitor.config, 'priority', 50),
+                        "execution_mode": getattr(monitor.config, 'execution_mode', 'merge'),
+                        "max_executions": getattr(monitor.config, 'max_executions', None),
+                        "execution_count": getattr(monitor.config, 'execution_count', 0),
+                        "users": getattr(monitor.config, 'users', []),
+                        "user_option": getattr(monitor.config, 'user_option', None),
+                        "blocked_users": getattr(monitor.config, 'blocked_users', []),
+                        "blocked_channels": getattr(monitor.config, 'blocked_channels', []),
+                        "blocked_bots": getattr(monitor.config, 'blocked_bots', []),
+                        "bot_ids": getattr(monitor.config, 'bot_ids', []),
+                        "channel_ids": getattr(monitor.config, 'channel_ids', []),
+                        "group_ids": getattr(monitor.config, 'group_ids', []),
+                        "reply_enabled": getattr(monitor.config, 'reply_enabled', False),
+                        "reply_texts": getattr(monitor.config, 'reply_texts', []),
+                        "reply_delay_min": getattr(monitor.config, 'reply_delay_min', 0),
+                        "reply_delay_max": getattr(monitor.config, 'reply_delay_max', 0),
+                        "ai_reply_prompt": getattr(monitor.config, 'ai_reply_prompt', '')
                     }
                     
-                    reply_mode = getattr(monitor.bak, 'reply_mode', 'reply')
+                    reply_mode = getattr(monitor.config, 'reply_mode', 'reply')
                     config_dict["reply_mode"] = reply_mode.value if hasattr(reply_mode, 'value') else str(reply_mode)
                     
-                    reply_content_type = getattr(monitor.bak, 'reply_content_type', 'custom')
+                    reply_content_type = getattr(monitor.config, 'reply_content_type', 'custom')
                     config_dict["reply_content_type"] = reply_content_type.value if hasattr(reply_content_type, 'value') else str(reply_content_type)
                     
-                    match_type = getattr(monitor.bak, 'match_type', 'partial')
+                    match_type = getattr(monitor.config, 'match_type', 'partial')
                     config_dict["match_type"] = match_type.value if hasattr(match_type, 'value') else str(match_type)
                     
-                    if hasattr(monitor.bak, 'keyword'):
-                        config_dict["keyword"] = monitor.bak.keyword
-                    if hasattr(monitor.bak, 'chat_id'):
-                        config_dict["chat_id"] = monitor.bak.chat_id
-                    if hasattr(monitor.bak, 'ai_prompt'):
-                        config_dict["ai_prompt"] = monitor.bak.ai_prompt
-                        config_dict["confidence_threshold"] = getattr(monitor.bak, 'confidence_threshold', 0.7)
-                        config_dict["ai_model"] = getattr(monitor.bak, 'ai_model', 'gpt-4o')
-                    if hasattr(monitor.bak, 'file_extension'):
-                        config_dict["file_extension"] = monitor.bak.file_extension
-                        config_dict["save_folder"] = getattr(monitor.bak, 'save_folder', None)
-                        config_dict["min_size"] = getattr(monitor.bak, 'min_size', None)
-                        config_dict["max_size"] = getattr(monitor.bak, 'max_size', None)
-                    if hasattr(monitor.bak, 'button_keyword'):
-                        config_dict["button_keyword"] = monitor.bak.button_keyword
-                        button_mode = getattr(monitor.bak, 'mode', 'manual')
+                    if hasattr(monitor.config, 'keyword'):
+                        config_dict["keyword"] = monitor.config.keyword
+                    if hasattr(monitor.config, 'chat_id'):
+                        config_dict["chat_id"] = monitor.config.chat_id
+                    if hasattr(monitor.config, 'ai_prompt'):
+                        config_dict["ai_prompt"] = monitor.config.ai_prompt
+                        config_dict["confidence_threshold"] = getattr(monitor.config, 'confidence_threshold', 0.7)
+                        config_dict["ai_model"] = getattr(monitor.config, 'ai_model', 'gpt-4o')
+                    if hasattr(monitor.config, 'file_extension'):
+                        config_dict["file_extension"] = monitor.config.file_extension
+                        config_dict["save_folder"] = getattr(monitor.config, 'save_folder', None)
+                        config_dict["min_size"] = getattr(monitor.config, 'min_size', None)
+                        config_dict["max_size"] = getattr(monitor.config, 'max_size', None)
+                    if hasattr(monitor.config, 'button_keyword'):
+                        config_dict["button_keyword"] = monitor.config.button_keyword
+                        button_mode = getattr(monitor.config, 'mode', 'manual')
                         config_dict["mode"] = button_mode.value if hasattr(button_mode, 'value') else str(button_mode)
-                    if hasattr(monitor.bak, 'extension'):
-                        config_dict["extension"] = monitor.bak.extension
+                    if hasattr(monitor.config, 'extension'):
+                        config_dict["extension"] = monitor.config.extension
                 
                 result.append(MonitorInfo(
                     monitor_type=monitor.__class__.__name__,
                     key=f"{monitor.__class__.__name__}_{i}",
                     config=config_dict,
-                    execution_count=getattr(monitor.bak, 'execution_count', 0) if hasattr(monitor, 'config') else 0,
-                    max_executions=getattr(monitor.bak, 'max_executions', None) if hasattr(monitor, 'config') else None,
+                    execution_count=getattr(monitor.config, 'execution_count', 0) if hasattr(monitor, 'config') else 0,
+                    max_executions=getattr(monitor.config, 'max_executions', None) if hasattr(monitor, 'config') else None,
                     account_id=account_id
                 ))
                 

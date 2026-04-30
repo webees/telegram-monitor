@@ -265,7 +265,7 @@ class MonitorEngine(metaclass=Singleton):
                 monitors_data[account_id] = []
                 for monitor in monitors:
                     if hasattr(monitor, 'config'):
-                        config = monitor.bak
+                        config = monitor.config
                         monitor_data = {
                             'type': monitor.__class__.__name__.replace('Monitor', '').lower(),
                             'config': {}
@@ -388,8 +388,8 @@ class MonitorEngine(metaclass=Singleton):
         monitors_list = []
         for i, monitor in enumerate(self.monitors[account.account_id]):
             monitor_key = f"{monitor.__class__.__name__}_{i}"
-            priority = getattr(monitor.bak, 'priority', 50)
-            execution_mode = getattr(monitor.bak, 'execution_mode', 'merge')
+            priority = getattr(monitor.config, 'priority', 50)
+            execution_mode = getattr(monitor.config, 'execution_mode', 'merge')
             monitors_list.append((priority, monitor_key, monitor, execution_mode))
 
         monitors_list.sort(key=lambda x: x[0])
@@ -463,7 +463,7 @@ class MonitorEngine(metaclass=Singleton):
             await self._run_actions(message_event, account, merge_actions, merge_monitors)
 
     def _merge_monitor_actions(self, monitor, monitor_key: str, all_actions: dict):
-        config = monitor.bak
+        config = monitor.config
 
         if config.email_notify:
             all_actions['email_notify'] = True
@@ -510,7 +510,7 @@ class MonitorEngine(metaclass=Singleton):
             all_actions['reply_mode'] = reply_mode_value
 
     def _collect_actions(self, monitor, monitor_key: str) -> dict:
-        config = monitor.bak
+        config = monitor.config
         actions = {
             'email_notify': config.email_notify,
             'forward_targets': set(config.forward_targets) if config.auto_forward else set(),
@@ -786,7 +786,7 @@ class MonitorEngine(metaclass=Singleton):
             email_content += f"{i}. 【{monitor_type}监控器】\n"
 
             if hasattr(monitor, 'config'):
-                config = monitor.bak
+                config = monitor.config
 
                 if monitor_type == 'Keyword':
                     keyword = getattr(config, 'keyword', '未知')
