@@ -34,7 +34,7 @@ class MonitorFactory:
     def register(self, cfg_type: Type, cls: Type):
         self._registry[cfg_type] = cls
 
-    def create(self, config: BaseMonitorConfig) -> Optional[BaseMonitor]:
+    def create_monitor(self, config: BaseMonitorConfig) -> Optional[BaseMonitor]:
         cls = self._registry.get(type(config))
         if not cls:
             return None
