@@ -84,6 +84,15 @@ class BaseMonitorConfig:
         self.active = False
         self.execution_count = 0
 
+    def forward_rewrite_options(self) -> Dict[str, Any]:
+        if not self.auto_forward or not self.forward_rewrite_enabled:
+            return {}
+        return {
+            "enabled": True,
+            "template": self.forward_rewrite_template,
+            "prompt": self.forward_rewrite_prompt
+        }
+
 
 @dataclass
 class KeywordConfig(BaseMonitorConfig):

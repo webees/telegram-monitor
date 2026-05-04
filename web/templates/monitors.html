@@ -339,99 +339,6 @@
         margin-bottom: 24px;
     }
     
-    @media (max-width: 768px) {
-        .monitor-config-container {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            position: relative;
-            padding-bottom: 20px; /* 为滚动条留出空间 */
-        }
-        
-        .monitor-config-grid {
-            min-width: 800px !important;
-            grid-template-columns: minmax(350px, 1fr) minmax(350px, 1fr) !important;
-            gap: 16px;
-        }
-        
-        .monitor-config-container::-webkit-scrollbar {
-            height: 8px;
-        }
-        
-        .monitor-config-container::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.1);
-            border-radius: 4px;
-            margin: 0 8px;
-        }
-        
-        .monitor-config-container::-webkit-scrollbar-thumb {
-            background: var(--primary-color);
-            border-radius: 4px;
-            opacity: 0.8;
-        }
-        
-        .monitor-config-container::-webkit-scrollbar-thumb:hover {
-            background: var(--primary-color);
-            opacity: 1;
-        }
-        
-        .monitor-config-container::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 20px;
-            height: 100%;
-            background: linear-gradient(to left, rgba(0,0,0,0.1), transparent);
-            pointer-events: none;
-            opacity: 0.5;
-        }
-        
-        .monitor-config-grid > div {
-            min-width: 320px;
-        }
-        
-        .monitor-config-grid p {
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        
-        .monitors-table {
-            scrollbar-width: thin;
-            scrollbar-color: rgba(91, 95, 222, 0.3) transparent;
-        }
-        
-        .monitors-table::-webkit-scrollbar {
-            height: 6px;
-        }
-        
-        .monitors-table::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.1);
-            border-radius: 3px;
-        }
-        
-        .monitors-table::-webkit-scrollbar-thumb {
-            background: rgba(91, 95, 222, 0.5);
-            border-radius: 3px;
-        }
-        
-        .monitors-table::-webkit-scrollbar-thumb:hover {
-            background: rgba(91, 95, 222, 0.7);
-        }
-    }
-    
-    @media (max-width: 480px) {
-        .monitor-config-grid {
-            min-width: 700px !important;
-            grid-template-columns: 320px 320px !important;
-            gap: 12px;
-        }
-        
-        .monitor-config-container {
-            padding: 12px;
-            margin: 0 -8px; /* 扩展到屏幕边缘 */
-        }
-    }
-
     .account-selector-wrapper {
         position: relative;
         flex: 1;
@@ -561,17 +468,28 @@
         flex: 1;
     }
 
-    .monitor-config-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 24px;
-        margin-bottom: 24px;
-    }
-
     .json-details {
         margin-top: 24px;
         border-top: 1px solid var(--border-color);
         padding-top: 24px;
+    }
+
+    .config-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .config-row span:first-child {
+        color: var(--text-secondary);
+    }
+
+    .config-row span:last-child {
+        color: var(--text-primary);
+        text-align: right;
+        word-break: break-word;
     }
 
     .json-details summary {
@@ -610,11 +528,6 @@
         
         .config-modal-body {
             padding: 16px;
-        }
-        
-        .monitor-config-grid {
-            grid-template-columns: 1fr;
-            gap: 16px;
         }
         
         .monitors-table {
@@ -662,10 +575,6 @@
         
         .config-modal-header h5 {
             font-size: 16px;
-        }
-        
-        .monitor-config-grid {
-            gap: 12px;
         }
         
         .json-details pre {
@@ -1038,36 +947,6 @@
         return names[type] || '未知类型';
     }
     
-    function getMatchTypeName(matchType) {
-        const matchMap = {
-            'partial': '部分匹配',
-            'exact': '精确匹配',
-            'regex': '正则匹配',
-            'contains': '包含匹配',
-            'starts_with': '开头匹配',
-            'ends_with': '结尾匹配'
-        };
-        return matchMap[matchType] || matchType || '部分匹配';
-    }
-    
-    function getExecutionModeName(mode) {
-        const modeMap = {
-            'merge': '合并执行',
-            'first_match': '首次匹配停止',
-            'all': '全部独立执行'
-        };
-        return modeMap[mode] || '合并执行';
-    }
-    
-    function getUserOptionName(option) {
-        const optionMap = {
-            '1': 'ID匹配',
-            '2': '用户名匹配',
-            '3': '昵称匹配'
-        };
-        return optionMap[option] || option || '未设置';
-    }
-    
     function getMonitorStatusBadge(monitor) {
         const isLimited = monitor.max_executions && monitor.execution_count >= monitor.max_executions;
         
@@ -1171,95 +1050,50 @@
         window.location.href = '/wizard?new=true&timestamp=' + Date.now();
     }
     
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, char => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char]));
+    }
+
     function viewMonitorConfig(monitorKey, encodedConfig) {
         try {
             const config = JSON.parse(decodeURIComponent(encodedConfig));
-            
+            const status = config.active !== false ? '运行中' : '已暂停';
+            const yesNo = value => value ? '已启用' : '未启用';
+            const list = value => Array.isArray(value) && value.length ? value.join(', ') : '未设置';
+            const row = (label, value) => `<div class="config-row"><span>${label}</span><span>${escapeHtml(value)}</span></div>`;
+            const summary = [
+                row('类型', getMonitorTypeName(config.monitor_type || 'Unknown')),
+                row('状态', status),
+                row('监控范围', list(config.chats)),
+                row('自动转发', yesNo(config.auto_forward)),
+                row('转发目标', list(config.forward_targets)),
+                row('智能改写', yesNo(config.forward_rewrite_enabled)),
+                row('追加模板', config.forward_rewrite_template || '未设置'),
+                row('自动回复', yesNo(config.reply_enabled)),
+                row('执行限制', config.max_executions || '无限制')
+            ].join('');
+
             const modal = document.createElement('div');
             modal.className = 'config-modal-overlay';
-            
             modal.innerHTML = `
                 <div class="config-modal-content">
                     <div class="config-modal-header">
-                        <h5><i class="bi bi-gear"></i> 监控器配置详情</h5>
+                        <h5><i class="bi bi-gear"></i> ${escapeHtml(getMonitorTypeName(config.monitor_type || 'Unknown'))} · ${status}</h5>
                         <button class="config-modal-close" onclick="this.closest('.config-modal-overlay').remove(); document.body.style.overflow = '';">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
                     <div class="config-modal-body">
-                        <div class="monitor-config-grid">
-                            <div>
-                                <h6 style="color: var(--primary-color); margin-bottom: 12px;">基本信息</h6>
-                                <p><strong>监控器类型:</strong> ${getMonitorTypeName(config.monitor_type || 'Unknown')}</p>
-                                <p><strong>状态:</strong> <span style="color: ${config.active !== false ? 'var(--success-color)' : 'var(--warning-color)'};">${config.active !== false ? '运行中' : '已暂停'}</span></p>
-                                <p><strong>优先级:</strong> ${config.priority || 50}</p>
-                                <p><strong>执行模式:</strong> ${getExecutionModeName(config.execution_mode || 'merge')}</p>
-                                <p><strong>已执行次数:</strong> ${config.execution_count || 0}</p>
-                                <p><strong>最大执行次数:</strong> ${config.max_executions || '无限制'}</p>
-                                
-                                ${config.keyword ? `<h6 style="color: var(--info-color); margin: 16px 0 8px;">关键词配置</h6>
-                                <p><strong>关键词:</strong> ${config.keyword}</p>
-                                <p><strong>匹配模式:</strong> ${getMatchTypeName(config.match_type || 'partial')}</p>` : ''}
-                                
-                                ${config.chat_id ? `<h6 style="color: var(--info-color); margin: 16px 0 8px;">全量监控配置</h6>
-                                <p><strong>监控频道/群组:</strong> ${config.chat_id}</p>` : ''}
-                                
-                                ${config.file_extension ? `<h6 style="color: var(--info-color); margin: 16px 0 8px;">文件配置</h6>
-                                <p><strong>文件类型:</strong> ${config.file_extension}</p>
-                                <p><strong>保存目录:</strong> ${config.save_folder || '默认'}</p>
-                                <p><strong>最小大小:</strong> ${config.min_size || '无限制'}</p>
-                                <p><strong>最大大小:</strong> ${config.max_size || '无限制'}</p>` : ''}
-                                
-                                ${config.ai_prompt || config.button_keyword ? `<h6 style="color: var(--info-color); margin: 16px 0 8px;">AI/按钮配置</h6>
-                                ${config.ai_prompt ? `<p><strong>AI提示词:</strong> ${config.ai_prompt}</p>` : ''}
-                                ${config.confidence_threshold ? `<p><strong>置信阈值:</strong> ${config.confidence_threshold}</p>` : ''}
-                                ${config.ai_model ? `<p><strong>AI模型:</strong> ${config.ai_model}</p>` : ''}
-                                ${config.button_keyword ? `<p><strong>按钮关键词:</strong> ${config.button_keyword}</p>` : ''}
-                                ${config.mode ? `<p><strong>按钮模式:</strong> ${config.mode === 'ai' ? 'AI智能点击' : '关键词匹配'}</p>` : ''}` : ''}
-                            </div>
-                            
-                            <div>
-                                <h6 style="color: var(--success-color); margin-bottom: 12px;">动作配置</h6>
-                                <p><strong>监控聊天:</strong> ${config.chats && config.chats.length > 0 ? config.chats.join(', ') : '所有聊天'}</p>
-                                <p><strong>邮件通知:</strong> ${config.email_notify ? '已启用' : '已禁用'}</p>
-                                <p><strong>自动转发:</strong> ${config.auto_forward ? '已启用' : '已禁用'}</p>
-                                ${config.forward_targets && config.forward_targets.length > 0 ? `<p><strong>转发目标:</strong> ${config.forward_targets.join(', ')}</p>` : ''}
-                                <p><strong>增强转发:</strong> ${config.enhanced_forward ? '已启用' : '已禁用'}</p>
-                                <p><strong>智能改写:</strong> ${config.forward_rewrite_enabled ? '已启用' : '已禁用'}</p>
-                                ${config.forward_rewrite_template ? `<p><strong>追加模板:</strong> ${config.forward_rewrite_template}</p>` : ''}
-                                
-                                <h6 style="color: var(--warning-color); margin: 16px 0 8px;">回复配置</h6>
-                                <p><strong>自动回复:</strong> ${config.reply_enabled ? '已启用' : '已禁用'}</p>
-                                ${config.reply_enabled ? `
-                                    ${config.reply_mode ? `<p><strong>回复模式:</strong> ${config.reply_mode === 'reply' ? '回复消息' : '直接发送'}</p>` : ''}
-                                    ${config.reply_content_type ? `<p><strong>回复内容类型:</strong> ${config.reply_content_type === 'ai' ? 'AI生成回复' : '自定义回复内容'}</p>` : ''}
-                                    ${config.reply_texts && config.reply_texts.length > 0 ? `
-                                        <p><strong>自定义回复内容:</strong></p>
-                                        <ul style="margin: 4px 0; padding-left: 20px;">
-                                            ${config.reply_texts.map(text => `<li>${text || '(空文本)'}</li>`).join('')}
-                                        </ul>
-                                    ` : ''}
-                                    ${config.ai_reply_prompt ? `<p><strong>AI回复提示词:</strong> ${config.ai_reply_prompt}</p>` : ''}
-                                    ${config.reply_delay_min !== undefined || config.reply_delay_max !== undefined ? `<p><strong>回复延时:</strong> ${config.reply_delay_min || 0} - ${config.reply_delay_max || 0} 秒</p>` : ''}
-                                ` : ''}
-                                
-                                <h6 style="color: var(--danger-color); margin: 16px 0 8px;">过滤配置</h6>
-                                ${config.blocked_users && config.blocked_users.length > 0 ? `<p><strong>屏蔽用户:</strong> ${config.blocked_users.join(', ')}</p>` : ''}
-                                ${config.blocked_channels && config.blocked_channels.length > 0 ? `<p><strong>屏蔽频道:</strong> ${config.blocked_channels.join(', ')}</p>` : ''}
-                                ${config.blocked_bots && config.blocked_bots.length > 0 ? `<p><strong>屏蔽Bot:</strong> ${config.blocked_bots.join(', ')}</p>` : ''}
-                                
-                                ${config.bot_ids && config.bot_ids.length > 0 ? `<p><strong>精确Bot ID:</strong> ${config.bot_ids.join(', ')}</p>` : ''}
-                                ${config.channel_ids && config.channel_ids.length > 0 ? `<p><strong>精确频道/群组ID:</strong> ${config.channel_ids.join(', ')}</p>` : ''}
-                                ${config.group_ids && config.group_ids.length > 0 ? `<p><strong>精确群组ID:</strong> ${config.group_ids.join(', ')}</p>` : ''}
-                                
-                                ${config.users && config.users.length > 0 ? `<p><strong>指定用户:</strong> ${config.users.join(', ')}</p>` : ''}
-                                ${config.user_option ? `<p><strong>用户匹配方式:</strong> ${getUserOptionName(config.user_option)}</p>` : ''}
-                            </div>
-                        </div>
-                        
+                        ${summary}
                         <details class="json-details">
-                            <summary>查看完整配置JSON</summary>
-                            <pre>${JSON.stringify(config, null, 2)}</pre>
+                            <summary>高级：完整配置</summary>
+                            <pre>${escapeHtml(JSON.stringify(config, null, 2))}</pre>
                         </details>
                     </div>
                 </div>

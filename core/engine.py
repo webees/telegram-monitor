@@ -3,7 +3,6 @@
 负责协调各种监控器和处理消息事件
 """
 
-import json
 import asyncio
 import pytz
 import copy
@@ -21,6 +20,7 @@ from .model import MessageEvent, TelegramMessage, MessageSender, Account
 from monitor import BaseMonitor, MonitorResult, monitor_factory
 from .singleton import Singleton
 from .log import get_logger
+from .storage import atomic_write_json, read_json_file
 
 
 class MonitorEngine(metaclass=Singleton):
@@ -119,8 +119,7 @@ class MonitorEngine(metaclass=Singleton):
             return
 
         try:
-            with open(self.monitors_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+            data = read_json_file(self.monitors_file, {})
 
             for account_id, monitors_data in data.items():
                 for monitor_data in monitors_data:
@@ -276,8 +275,6 @@ class MonitorEngine(metaclass=Singleton):
 
     def _save_monitors(self):
         try:
-            self.monitors_file.parent.mkdir(parents=True, exist_ok=True)
-
             monitors_data = {}
             for account_id, monitors in self.monitors.items():
                 monitors_data[account_id] = []
@@ -303,12 +300,7 @@ class MonitorEngine(metaclass=Singleton):
                         monitors_data[account_id].append(monitor_data)
 
             monitors_data_copy = copy.deepcopy(monitors_data)
-            temp_file = self.monitors_file.with_suffix(f"{self.monitors_file.suffix}.tmp")
-
-            with self._save_lock:
-                with open(temp_file, 'w', encoding='utf-8') as f:
-                    json.dump(monitors_data_copy, f, indent=2, ensure_ascii=False)
-                temp_file.replace(self.monitors_file)
+            atomic_write_json(self.monitors_file, monitors_data_copy, self._save_lock)
 
             self.logger.info(f"已保存监控器配置")
 
@@ -491,12 +483,7 @@ class MonitorEngine(metaclass=Singleton):
             all_actions['forward_targets'].update(config.forward_targets)
             if config.enhanced_forward:
                 all_actions['enhanced_forward'] = True
-            if getattr(config, 'forward_rewrite_enabled', False):
-                all_actions['forward_rewrite'] = {
-                    "enabled": True,
-                    "template": getattr(config, 'forward_rewrite_template', ''),
-                    "prompt": getattr(config, 'forward_rewrite_prompt', '')
-                }
+            all_actions['forward_rewrite'] = config.forward_rewrite_options() or all_actions['forward_rewrite']
 
         if config.log_file:
             all_actions['log_files'].add(config.log_file)
@@ -540,11 +527,7 @@ class MonitorEngine(metaclass=Singleton):
             'email_notify': config.email_notify,
             'forward_targets': set(config.forward_targets) if config.auto_forward else set(),
             'enhanced_forward': config.enhanced_forward if config.auto_forward else False,
-            'forward_rewrite': {
-                "enabled": True,
-                "template": getattr(config, 'forward_rewrite_template', ''),
-                "prompt": getattr(config, 'forward_rewrite_prompt', '')
-            } if config.auto_forward and getattr(config, 'forward_rewrite_enabled', False) else {},
+            'forward_rewrite': config.forward_rewrite_options(),
             'log_files': {config.log_file} if config.log_file else set(),
             'reply_enabled': False,
             'reply_texts': [],
@@ -1223,15 +1206,8 @@ class MonitorEngine(metaclass=Singleton):
 
     def _save_scheduled_messages(self):
         try:
-            self.scheduled_messages_file.parent.mkdir(parents=True, exist_ok=True)
-            
             messages_copy = copy.deepcopy(self.scheduled_messages)
-            temp_file = self.scheduled_messages_file.with_suffix(f"{self.scheduled_messages_file.suffix}.tmp")
-
-            with self._save_lock:
-                with open(temp_file, 'w', encoding='utf-8') as f:
-                    json.dump(messages_copy, f, indent=2, ensure_ascii=False)
-                temp_file.replace(self.scheduled_messages_file)
+            atomic_write_json(self.scheduled_messages_file, messages_copy, self._save_lock)
 
             self.logger.info(f"已保存 {len(messages_copy)} 条定时消息")
 
@@ -1244,8 +1220,7 @@ class MonitorEngine(metaclass=Singleton):
             return
 
         try:
-            with open(self.scheduled_messages_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+            data = read_json_file(self.scheduled_messages_file, [])
 
             self.scheduled_messages = data
             self.logger.info(f"已加载 {len(self.scheduled_messages)} 条定时消息")

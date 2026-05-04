@@ -3,7 +3,6 @@
 负责管理所有Telegram账号的登录、连接和状态
 """
 
-import json
 import logging
 import asyncio
 import socks
@@ -16,6 +15,7 @@ from telethon.errors import SessionPasswordNeededError
 from .model import Account, AccountConfig
 from .singleton import Singleton
 from .log import get_logger
+from .storage import atomic_write_json, read_json_file
 
 
 class AccountManager(metaclass=Singleton):
@@ -36,8 +36,7 @@ class AccountManager(metaclass=Singleton):
             return
         
         try:
-            with open(self.accounts_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+            data = read_json_file(self.accounts_file, {'accounts': []})
             
             for account_data in data.get('accounts', []):
                 try:
@@ -75,8 +74,6 @@ class AccountManager(metaclass=Singleton):
     
     def _save_accounts(self):
         try:
-            self.accounts_file.parent.mkdir(parents=True, exist_ok=True)
-            
             accounts_data = []
             for account in self.accounts.values():
                 account_data = {
@@ -94,13 +91,8 @@ class AccountManager(metaclass=Singleton):
                 }
                 accounts_data.append(account_data)
             
-            temp_file = self.accounts_file.with_suffix(f"{self.accounts_file.suffix}.tmp")
             payload = {'accounts': accounts_data}
-
-            with self._save_lock:
-                with open(temp_file, 'w', encoding='utf-8') as f:
-                    json.dump(payload, f, indent=2, ensure_ascii=False)
-                temp_file.replace(self.accounts_file)
+            atomic_write_json(self.accounts_file, payload, self._save_lock)
 
             self.logger.info(f"已保存 {len(accounts_data)} 个账号")
             

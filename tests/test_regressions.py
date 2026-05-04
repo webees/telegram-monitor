@@ -17,6 +17,7 @@ from core.model import (
     MonitorConfig,
     TelegramMessage,
 )
+from core.storage import atomic_write_json, read_json_file
 from monitor.base import BaseMonitor, MonitorResult
 
 
@@ -78,6 +79,23 @@ def test_monitor_config_round_trip_preserves_enum_values():
 
     assert payload["keyword_configs"]["hello"]["match_type"] == "exact"
     assert restored.keyword_configs["hello"].match_type is MatchType.EXACT
+
+
+def test_forward_rewrite_options_respect_forward_state():
+    disabled = BaseMonitorConfig(forward_rewrite_enabled=True)
+    enabled = BaseMonitorConfig(
+        auto_forward=True,
+        forward_rewrite_enabled=True,
+        forward_rewrite_template="更多{topic}",
+        forward_rewrite_prompt="清理广告"
+    )
+
+    assert disabled.forward_rewrite_options() == {}
+    assert enabled.forward_rewrite_options() == {
+        "enabled": True,
+        "template": "更多{topic}",
+        "prompt": "清理广告"
+    }
 
 
 class FakeClient:
@@ -194,3 +212,13 @@ def test_account_save_writes_valid_json_atomically(tmp_path):
     assert not manager.accounts_file.with_suffix(".json.tmp").exists()
 
     AccountManager.clear_instance()
+
+
+def test_atomic_write_json_replaces_file_without_temp_leftover(tmp_path):
+    target = tmp_path / "state.json"
+
+    atomic_write_json(target, {"version": 1})
+    atomic_write_json(target, {"version": 2})
+
+    assert read_json_file(target, {}) == {"version": 2}
+    assert not target.with_suffix(".json.tmp").exists()
