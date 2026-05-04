@@ -6,272 +6,82 @@
 
 
 {% block content %}
-<div class="logs-document">
+<div id="logs-app" class="logs-document" v-cloak>
     <div class="logs-toolbar">
         <div class="logs-info">
             <div class="log-summary">
                 <div class="log-count">
                     <span>总计:</span>
-                    <span class="log-count-badge" id="total-logs">0</span>
+                    <span class="log-count-badge">[[ stats.total ]]</span>
                 </div>
                 <div class="log-count text-red-600">
                     <span>错误:</span>
-                    <span class="log-count-badge" id="error-count">0</span>
+                    <span class="log-count-badge">[[ stats.error ]]</span>
                 </div>
                 <div class="log-count text-amber-600">
                     <span>警告:</span>
-                    <span class="log-count-badge" id="warning-count">0</span>
+                    <span class="log-count-badge">[[ stats.warning ]]</span>
                 </div>
                 <div class="log-count text-sky-600">
                     <span>信息:</span>
-                    <span class="log-count-badge" id="info-count">0</span>
+                    <span class="log-count-badge">[[ stats.info ]]</span>
                 </div>
             </div>
-            <div class="loading-indicator hidden" id="loading-indicator">
+            <div class="loading-indicator" :class="loading ? 'flex' : 'hidden'">
                 <div class="loading-spinner"></div>
                 <span>更新中...</span>
             </div>
         </div>
         
         <div class="logs-actions">
-            <button class="log-filter-btn active" data-level="all">全部</button>
-            <button class="log-filter-btn error" data-level="error">错误</button>
-            <button class="log-filter-btn warning" data-level="warning">警告</button>
-            <button class="log-filter-btn info" data-level="info">信息</button>
-            <button class="log-filter-btn debug" data-level="debug">调试</button>
+            <button v-for="item in filters" :key="item.value" class="log-filter-btn"
+                    :class="[item.value, {active: currentFilter === item.value}]"
+                    @click="currentFilter = item.value">
+                [[ item.label ]]
+            </button>
             
             <div class="mx-2 h-5 border-l border-slate-200"></div>
             
-            <button class="btn btn-outline-danger btn-sm" onclick="clearLogs()" title="清空日志">
+            <button class="btn btn-outline-danger btn-sm" @click="clearLogs" title="清空日志">
                 <i class="bi bi-trash"></i> 清空
             </button>
-            <button class="btn btn-outline-primary btn-sm" onclick="downloadLogs()" title="下载日志">
+            <button class="btn btn-outline-primary btn-sm" @click="downloadLogs" title="下载日志">
                 <i class="bi bi-download"></i> 下载
             </button>
-            <button class="btn btn-outline-success btn-sm" onclick="refreshLogs()" title="刷新">
+            <button class="btn btn-outline-success btn-sm" :disabled="loading" @click="refreshLogs" title="刷新">
                 <i class="bi bi-arrow-clockwise"></i>
             </button>
         </div>
     </div>
     
-    <div class="logs-viewer" id="logs-viewer">
-        <div class="log-empty">
+    <div class="logs-viewer" ref="viewer">
+        <div v-if="error" class="p-5 text-center text-red-600">
+            加载日志失败: [[ error ]]
+        </div>
+        <div v-else-if="loading && !allLogs.length" class="log-empty">
             <div class="log-empty-icon">
                 <i class="bi bi-file-text"></i>
             </div>
             <div>正在加载日志...</div>
+        </div>
+        <div v-else-if="!visibleLogs.length" class="log-empty">
+            <div class="log-empty-icon">
+                <i class="bi bi-file-text"></i>
+            </div>
+            <div>暂无符合条件的日志</div>
+        </div>
+        <div v-for="log in visibleLogs" :key="log.timestamp + log.source + log.message" class="log-entry">
+            <div class="log-header">
+                <span class="log-time">[[ formatTime(log.timestamp) ]]</span>
+                <span class="log-badge" :class="String(log.level || '').toLowerCase()">[[ log.level ]]</span>
+                <span class="log-source">[[ log.source ]]</span>
+            </div>
+            <div class="log-content">[[ log.message ]]</div>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    let allLogs = [];
-    let filteredLogs = [];
-    let currentFilter = 'all';
-
-    document.addEventListener('DOMContentLoaded', function() {
-        loadLogs();
-        setupEventListeners();
-    });
-
-    function setupEventListeners() {
-        document.querySelectorAll('.log-filter-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.log-filter-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                currentFilter = this.dataset.level;
-                filterLogs();
-            });
-        });
-    }
-
-    async function loadLogs() {
-        try {
-            const response = await fetch('/api/logs?limit=1000');
-            const data = await response.json();
-            
-            if (data.success) {
-                allLogs = data.logs || [];
-                updateLogStats();
-                filterLogs();
-            } else {
-                throw new Error(data.message || '获取日志失败');
-            }
-        } catch (error) {
-            console.error('加载日志失败:', error);
-            document.getElementById('logs-viewer').innerHTML = `
-                <div class="p-5 text-center text-red-600">加载日志失败: ${error.message}</div>
-            `;
-        }
-    }
-
-    function filterLogs() {
-        if (currentFilter === 'all') {
-            filteredLogs = [...allLogs];
-        } else {
-            filteredLogs = allLogs.filter(log => 
-                log.level.toLowerCase() === currentFilter.toLowerCase()
-            );
-        }
-        renderLogs();
-    }
-
-    function renderLogs() {
-        const container = document.getElementById('logs-viewer');
-        
-        if (filteredLogs.length === 0) {
-            container.innerHTML = `
-                <div class="log-empty">
-                    <div class="log-empty-icon">
-                        <i class="bi bi-file-text"></i>
-                    </div>
-                    <div>暂无日志记录</div>
-                </div>
-            `;
-            return;
-        }
-
-        const logsHtml = filteredLogs.map(log => {
-            if (log.message && (
-                log.message.includes('GET /api/') ||
-                log.message.includes('POST /api/') ||
-                log.message.includes('PUT /api/') ||
-                log.message.includes('DELETE /api/') ||
-                log.message.includes('HTTP/1.1') ||
-                log.message.includes('获取日志') ||
-                log.message.includes('读取日志文件') ||
-                log.source === 'uvicorn' ||
-                log.source === 'uvicorn.access'
-            )) {
-                return '';
-            }
-            
-            const timestamp = new Date(log.timestamp).toLocaleString('zh-CN', {
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
-
-            return `
-                <div class="log-entry">
-                    <div class="log-header">
-                        <span class="log-time">${timestamp}</span>
-                        <span class="log-badge ${log.level.toLowerCase()}">${log.level}</span>
-                        <span class="log-source">${log.source}</span>
-                    </div>
-                    <div class="log-content">${log.message}</div>
-                </div>
-            `;
-        }).filter(html => html).join('');
-
-        container.innerHTML = logsHtml || `
-            <div class="log-empty">
-                <div class="log-empty-icon">
-                    <i class="bi bi-file-text"></i>
-                </div>
-                <div>暂无符合条件的日志</div>
-            </div>
-        `;
-        
-        container.scrollTop = container.scrollHeight;
-    }
-
-    function updateLogStats() {
-        const total = allLogs.length;
-        const errorCount = allLogs.filter(log => log.level === 'ERROR').length;
-        const warningCount = allLogs.filter(log => log.level === 'WARNING').length;
-        const infoCount = allLogs.filter(log => log.level === 'INFO').length;
-
-        document.getElementById('total-logs').textContent = total;
-        document.getElementById('error-count').textContent = errorCount;
-        document.getElementById('warning-count').textContent = warningCount;
-        document.getElementById('info-count').textContent = infoCount;
-    }
-
-    function refreshLogs() {
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const refreshBtn = document.querySelector('button[onclick="refreshLogs()"]');
-        
-        if (loadingIndicator) {
-            loadingIndicator.classList.remove('hidden');
-            loadingIndicator.classList.add('flex');
-        }
-        
-        if (refreshBtn) {
-            refreshBtn.disabled = true;
-            refreshBtn.classList.add('opacity-50');
-        }
-        
-        loadLogs().then(() => {
-            showNotification('日志已刷新', 'success');
-        }).catch((error) => {
-            showNotification('刷新失败: ' + error.message, 'error');
-        }).finally(() => {
-            if (loadingIndicator) {
-                loadingIndicator.classList.add('hidden');
-                loadingIndicator.classList.remove('flex');
-            }
-            
-            if (refreshBtn) {
-                refreshBtn.disabled = false;
-                refreshBtn.classList.remove('opacity-50');
-            }
-        });
-    }
-
-    async function clearLogs() {
-        if (!confirm('确定要清空所有日志吗？这将删除服务器上的日志文件内容，此操作不可恢复。')) {
-            return;
-        }
-        
-        try {
-            const response = await fetch('/api/logs/clear', {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                allLogs = [];
-                filteredLogs = [];
-
-                renderLogs();
-                updateLogStats();
-                showNotification('日志已清空', 'success');
-            } else {
-                throw new Error('清空日志失败');
-            }
-        } catch (error) {
-            console.error('清空日志失败:', error);
-            showNotification('清空日志失败: ' + error.message, 'error');
-        }
-    }
-
-    async function downloadLogs() {
-        try {
-            const response = await fetch('/api/logs/download');
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `system_logs_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}.log`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                
-                showNotification('日志文件下载成功', 'success');
-            } else {
-                throw new Error('下载失败');
-            }
-        } catch (error) {
-            console.error('下载日志失败:', error);
-            showNotification('下载日志失败: ' + error.message, 'error');
-        }
-    }
-
-</script>
+<script src="/static/js/logs.js"></script>
 {% endblock %}

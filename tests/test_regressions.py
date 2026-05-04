@@ -4,6 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
+from fastapi import HTTPException
+
 from core.account import AccountManager
 from core.ai import AIService
 from core.config import Config, config as app_config
@@ -23,6 +25,7 @@ from core.model import (
 )
 from core.storage import atomic_write_json, read_json_file
 from monitor.base import BaseMonitor, MonitorResult
+from web.app import WebApp
 from web.wizard import ConfigWizard
 
 
@@ -464,3 +467,18 @@ def test_forward_store_marks_result_and_restores_message(tmp_path):
     assert restored.message_id == message.message_id
     assert restored.grouped_id == 555
     assert store.rewrite_options(record) == {"enabled": True}
+
+
+def test_web_schedule_validation_accepts_cron_and_interval():
+    assert WebApp._validate_schedule("cron", "0 9 * * *") is None
+    assert WebApp._validate_schedule("interval", "1 30") == (1, 30)
+
+
+def test_web_schedule_validation_rejects_invalid_interval():
+    for expr in ("", "1", "0 0", "-1 10", "1 60", "a b"):
+        try:
+            WebApp._validate_schedule("interval", expr)
+        except HTTPException as exc:
+            assert exc.status_code == 400
+        else:
+            raise AssertionError(f"invalid interval accepted: {expr}")

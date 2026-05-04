@@ -5,25 +5,26 @@
 {% block page_subtitle %}账号、规则和系统状态{% endblock %}
 
 {% block content %}
+<div id="dashboard-app" v-cloak>
 <div class="stats-grid">
     <section class="stat-card">
         <div class="stat-title">总账号数</div>
-        <div class="stat-value" id="total-accounts">-</div>
+        <div class="stat-value">[[ totalAccounts ]]</div>
         <div class="stat-footer">所有已添加账号</div>
     </section>
     <section class="stat-card">
         <div class="stat-title">规则</div>
-        <div class="stat-value" id="active-monitors">-</div>
+        <div class="stat-value">[[ monitorCount ]]</div>
         <div class="stat-footer">当前配置数量</div>
     </section>
     <section class="stat-card">
         <div class="stat-title">处理消息</div>
-        <div class="stat-value" id="processed-messages">-</div>
+        <div class="stat-value">[[ processedMessages ]]</div>
         <div class="stat-footer">最近统计值</div>
     </section>
     <section class="stat-card">
         <div class="stat-title">运行时间</div>
-        <div class="stat-value" id="runtime">-</div>
+        <div class="stat-value">[[ runtime ]]</div>
         <div class="stat-footer">服务运行时长</div>
     </section>
 </div>
@@ -35,20 +36,20 @@
         </div>
         <div class="space-y-4">
             <label class="block">
-                <div class="metric-item"><span>CPU</span><span id="cpu-usage">-</span></div>
-                <progress id="cpu-progress" max="100" value="0" class="h-2 w-full"></progress>
+                <div class="metric-item"><span>CPU</span><span>[[ cpu ]]%</span></div>
+                <progress max="100" :value="cpu" class="h-2 w-full"></progress>
             </label>
             <label class="block">
-                <div class="metric-item"><span>内存</span><span id="memory-usage">-</span></div>
-                <progress id="memory-progress" max="100" value="0" class="h-2 w-full"></progress>
+                <div class="metric-item"><span>内存</span><span>[[ memoryText ]]</span></div>
+                <progress max="100" :value="memory" class="h-2 w-full"></progress>
             </label>
             <label class="block">
-                <div class="metric-item"><span>磁盘</span><span id="disk-usage">-</span></div>
-                <progress id="disk-progress" max="100" value="0" class="h-2 w-full"></progress>
+                <div class="metric-item"><span>磁盘</span><span>[[ disk ]]%</span></div>
+                <progress max="100" :value="disk" class="h-2 w-full"></progress>
             </label>
             <div class="metric-item">
                 <span>网络</span>
-                <span id="network-status">加载中...</span>
+                <span>[[ networkStatus ]]</span>
             </div>
         </div>
     </section>
@@ -65,40 +66,9 @@
         </div>
     </section>
 </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    const setText = (id, value) => {
-        const el = document.getElementById(id);
-        const next = String(value ?? '-');
-        if (el && el.textContent !== next) el.textContent = next;
-    };
-
-    const setProgress = (id, value) => {
-        const el = document.getElementById(id);
-        if (el && Number(el.value) !== value) el.value = value;
-    };
-
-    function updateDashboardStats(data) {
-        setText('total-accounts', data.total_accounts ?? data.account_count ?? 0);
-        setText('active-monitors', data.total_monitors ?? data.monitor_count ?? 0);
-        setText('processed-messages', new Intl.NumberFormat('zh-CN').format(data.processed_messages ?? 0));
-        setText('runtime', data.uptime || '-');
-        updateSystemMetrics(data);
-    }
-
-    function updateSystemMetrics(data) {
-        const cpu = Math.round(data.cpu_percent ?? 0);
-        const memory = Math.round(data.memory_percent ?? 0);
-        const disk = Math.round(data.disk_usage_percent ?? 0);
-        setText('cpu-usage', `${cpu}%`);
-        setText('memory-usage', `${Math.round(data.memory_used_mb ?? 0)} MB (${memory}%)`);
-        setText('disk-usage', `${disk}%`);
-        setProgress('cpu-progress', cpu);
-        setProgress('memory-progress', memory);
-        setProgress('disk-progress', disk);
-        setText('network-status', data.network_status || '未知');
-    }
-</script>
+<script src="/static/js/dashboard.js"></script>
 {% endblock %}

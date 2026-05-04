@@ -7,13 +7,14 @@
 
 
 {% block content %}
+<div id="config-export-app" v-cloak>
 <div class="stats-row">
     <div class="stat-item">
-        <div class="stat-value" id="monitor-count">-</div>
+        <div class="stat-value">[[ stats.monitor_count ]]</div>
         <div class="stat-label">规则数量</div>
     </div>
     <div class="stat-item">
-        <div class="stat-value" id="account-count">-</div>
+        <div class="stat-value">[[ stats.account_count ]]</div>
         <div class="stat-label">账号数量</div>
     </div>
 </div>
@@ -29,11 +30,14 @@
         </p>
         <div class="account-select-wrapper">
             <label>选择账号</label>
-            <select id="export-account-select" class="form-select">
+            <select v-model="selectedAccount" class="form-select">
                 <option value="all">全部账号</option>
+                <option v-for="account in accounts" :key="account.account_id" :value="account.account_id">
+                    [[ accountLabel(account) ]]
+                </option>
             </select>
         </div>
-        <button class="btn btn-success" onclick="exportConfig()">
+        <button class="btn btn-success" @click="exportConfig">
             <i class="bi bi-download"></i>
             导出配置文件
         </button>
@@ -51,14 +55,14 @@
             <label>导入模式</label>
             <div class="import-mode-options">
                 <label>
-                    <input type="radio" name="import-mode" value="overwrite" checked>
+                    <input type="radio" v-model="importMode" value="overwrite">
                     <div class="mode-content">
                         <span class="mode-title">覆盖配置</span>
                         <span class="mode-description">删除现有配置并导入新配置</span>
                     </div>
                 </label>
                 <label>
-                    <input type="radio" name="import-mode" value="merge">
+                    <input type="radio" v-model="importMode" value="merge">
                     <div class="mode-content">
                         <span class="mode-title">合并配置</span>
                         <span class="mode-description">保留现有配置并合并新配置</span>
@@ -66,223 +70,35 @@
                 </label>
             </div>
         </div>
-        <button class="btn btn-info" onclick="document.getElementById('importFile').click()">
+        <button class="btn btn-info" @click="$refs.importFile.click()">
             <i class="bi bi-upload"></i>
             选择配置文件
         </button>
-        <input type="file" id="importFile" class="file-input" accept=".json" onchange="importConfig(this)">
+        <input ref="importFile" type="file" class="file-input" accept=".json" @change="importConfig">
     </div>
 </div>
 
-<div class="preview-section hidden" id="preview-section">
+<div v-if="previewText" class="preview-section">
     <div class="preview-header">
         <h3 class="preview-title">配置预览</h3>
         <div class="preview-actions">
-            <button class="btn btn-icon" onclick="copyConfig()">
+            <button class="btn btn-icon" @click="copyConfig">
                 <i class="bi bi-clipboard"></i>
             </button>
-            <button class="btn btn-icon" onclick="downloadConfig()">
+            <button class="btn btn-icon" @click="downloadConfig">
                 <i class="bi bi-download"></i>
             </button>
-            <button class="btn btn-icon" onclick="closePreview()">
+            <button class="btn btn-icon" @click="previewText = ''">
                 <i class="bi bi-x"></i>
             </button>
         </div>
     </div>
-    <div class="preview-content" id="preview-content">
-    </div>
+    <pre class="preview-content">[[ previewText ]]</pre>
+</div>
 </div>
 
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        loadStatistics();
-        loadAccountsForExport();
-    });
-    
-    async function loadAccountsForExport() {
-        try {
-            const response = await fetch('/api/accounts');
-            const data = await response.json();
-            const select = document.getElementById('export-account-select');
-            
-            if (!select) {
-                console.error('未找到账号选择框元素');
-                return;
-            }
-            
-            select.innerHTML = '<option value="all">全部账号</option>';
-            
-            if (data.accounts && data.accounts.length > 0) {
-                data.accounts.forEach(account => {
-                    const option = document.createElement('option');
-                    option.value = account.account_id;
-                    const displayText = account.phone ? 
-                        `${account.phone} (${account.account_id})` : 
-                        account.account_id;
-                    option.textContent = displayText;
-                    select.appendChild(option);
-                });
-                console.log(`成功加载 ${data.accounts.length} 个账号到导出选项`);
-            } else {
-                console.log('未找到可用账号');
-            }
-        } catch (error) {
-            console.error('加载账号列表失败:', error);
-            showMessage('加载账号列表失败: ' + error.message, 'error');
-        }
-    }
-    
-    async function loadStatistics() {
-        try {
-            const response = await fetch('/api/config/stats');
-            const data = await response.json();
-            
-            if (data.success && data.stats) {
-                document.getElementById('monitor-count').textContent = data.stats.monitor_count || 0;
-                document.getElementById('account-count').textContent = data.stats.account_count || 0;
-            } else {
-                document.getElementById('monitor-count').textContent = '-';
-                document.getElementById('account-count').textContent = '-';
-            }
-        } catch (error) {
-            console.error('加载统计信息失败:', error);
-            document.getElementById('monitor-count').textContent = '错误';
-            document.getElementById('account-count').textContent = '错误';
-        }
-    }
-    
-    async function exportConfig() {
-        try {
-            const accountSelect = document.getElementById('export-account-select');
-            const accounts = accountSelect.value;
-            
-            if (!accounts) {
-                showMessage('请选择要导出的账号', 'error');
-                return;
-            }
-            
-            console.log('导出配置，账号参数:', accounts);
-            
-            const response = await fetch(`/api/export/config?accounts=${encodeURIComponent(accounts)}`);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            const data = await response.json();
-            
-            showPreview(data);
-            
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `system_config_${new Date().getTime()}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-            
-            showMessage('配置导出成功', 'success');
-        } catch (error) {
-            console.error('导出配置失败:', error);
-            showMessage('导出配置失败', 'error');
-        }
-    }
-    
-    async function importConfig(input) {
-        const file = input.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = async function(e) {
-            try {
-                const config = JSON.parse(e.target.result);
-                
-                showPreview(config);
-                
-                const importMode = document.querySelector('input[name="import-mode"]:checked').value;
-                const isOverwrite = importMode === 'overwrite';
-                
-                const modeText = isOverwrite ? '覆盖现有配置' : '合并到现有配置';
-                if (!confirm(`确定要导入此配置吗？这将${modeText}。`)) {
-                    return;
-                }
-                
-                const response = await fetch('/api/import/config', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        config: config,
-                        mode: importMode
-                    })
-                });
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    showMessage(`配置导入成功 (${modeText})`, 'success');
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || '导入失败');
-                }
-            } catch (error) {
-                console.error('导入配置失败:', error);
-                showMessage('导入配置失败: ' + error.message, 'error');
-            }
-        };
-        reader.readAsText(file);
-        
-        input.value = '';
-    }
-    
-    function showPreview(config) {
-        document.getElementById('preview-section').classList.remove('hidden');
-        document.getElementById('preview-content').textContent = JSON.stringify(config, null, 2);
-    }
-    
-    function closePreview() {
-        document.getElementById('preview-section').classList.add('hidden');
-    }
-    
-    function copyConfig() {
-        const content = document.getElementById('preview-content').textContent;
-        navigator.clipboard.writeText(content).then(() => {
-            showMessage('配置已复制到剪贴板', 'success');
-        });
-    }
-    
-    function downloadConfig() {
-        const content = document.getElementById('preview-content').textContent;
-        const blob = new Blob([content], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `system_config_${new Date().getTime()}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-    
-    function showMessage(message, type = 'info') {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type}`;
-        alertDiv.innerHTML = `
-            <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info-circle'}"></i>
-            <span>${message}</span>
-        `;
-        
-        const container = document.querySelector('.content');
-        container.insertBefore(alertDiv, container.firstChild);
-        
-        setTimeout(() => {
-            alertDiv.remove();
-        }, 3000);
-    }
-    
-    function formatTime(timestamp) {
-        const date = new Date(timestamp);
-        return date.toLocaleString('zh-CN');
-    }
-</script>
+<script src="/static/js/config-export.js"></script>
 {% endblock %}

@@ -1,621 +1,109 @@
 {% extends "base.html" %}
 
 {% block title %}目标列表{% endblock %}
-
 {% block page_title %}目标列表{% endblock %}
 {% block page_subtitle %}查看可用目标{% endblock %}
 
-
 {% block content %}
-<div class="account-selector-container">
-    <div class="account-selector-content">
-        <div class="account-selector-wrapper">
-            <label for="account-selector" class="account-selector-label">
-                <i class="bi bi-person-circle"></i>
-                <span>选择账号</span>
-            </label>
-            <select class="form-select" id="account-selector">
-                <option value="">请选择账号</option>
-            </select>
+<div id="channels-app" v-cloak>
+    <div class="account-selector-container">
+        <div class="account-selector-content">
+            <div class="account-selector-wrapper">
+                <label class="account-selector-label">
+                    <i class="bi bi-person-circle"></i>
+                    <span>选择账号</span>
+                </label>
+                <select v-model="accountId" class="form-select">
+                    <option value="">请选择账号</option>
+                    <option v-for="account in accounts" :key="account.account_id" :value="account.account_id">
+                        [[ account.phone ]] ([[ account.account_id ]])
+                    </option>
+                </select>
+            </div>
+            <button class="btn btn-primary" :disabled="loading" @click="loadChannels">
+                <i class="bi bi-arrow-clockwise"></i>
+                <span>[[ loading ? '加载中' : '加载目标' ]]</span>
+            </button>
         </div>
-        <button class="btn btn-primary" onclick="loadChannelsForAccount()">
-            <i class="bi bi-arrow-clockwise"></i>
-            <span>加载目标</span>
-        </button>
     </div>
-</div>
 
-<div class="filter-bar">
-    <div class="search-box">
-        <input type="text" class="search-input" id="searchInput" placeholder="搜索群组、目标名称...">
-        <i class="bi bi-search search-icon"></i>
+    <div class="filter-bar">
+        <div class="search-box">
+            <input v-model.trim="search" type="text" class="search-input" placeholder="搜索群组、目标名称...">
+            <i class="bi bi-search search-icon"></i>
+        </div>
+        <div class="filter-chips">
+            <button v-for="item in filters" :key="item.value" class="filter-chip"
+                    :class="{active: filter === item.value}" @click="setFilter(item.value)">
+                <i v-if="item.icon" :class="item.icon"></i>
+                [[ item.label ]] ([[ countFor(item.value) ]])
+            </button>
+            <button class="btn btn-success" @click="exportChannels">
+                <i class="bi bi-download"></i>
+                <span>导出列表</span>
+            </button>
+        </div>
     </div>
-    
-    <div class="filter-chips">
-        <button class="filter-chip active" data-filter="all">
-            全部 <span id="total-count">(0)</span>
-        </button>
-        <button class="filter-chip" data-filter="channel">
-            <i class="bi bi-broadcast"></i>
-            目标 <span id="channel-count">(0)</span>
-        </button>
-        <button class="filter-chip" data-filter="group">
-            <i class="bi bi-people"></i>
-            会话 <span id="group-count">(0)</span>
-        </button>
-        <button class="filter-chip" data-filter="bot">
-            <i class="bi bi-robot"></i>
-            Bot <span id="bot-count">(0)</span>
-        </button>
-        <button class="filter-chip" data-filter="user">
-            <i class="bi bi-person"></i>
-            私聊 <span id="user-count">(0)</span>
-        </button>
-        <button class="btn btn-success" onclick="exportChannels()">
-            <i class="bi bi-download"></i>
-            <span>导出列表</span>
-        </button>
-    </div>
-</div>
 
-<div id="channels-container">
-    <div class="channels-grid" id="loading-state">
-        <div class="loading-skeleton">
-            <div class="skeleton-header">
-                <div class="skeleton-avatar"></div>
-                <div class="skeleton-text">
-                    <div class="skeleton-line short"></div>
-                    <div class="skeleton-line"></div>
+    <div v-if="loading" class="channels-grid">
+        <div v-for="item in 3" :key="item" class="data-card">
+            <div class="h-4 w-1/2 rounded bg-slate-200"></div>
+            <div class="mt-3 h-3 rounded bg-slate-100"></div>
+            <div class="mt-2 h-3 w-2/3 rounded bg-slate-100"></div>
+        </div>
+    </div>
+
+    <div v-else-if="!pagedChannels.length" class="empty-state">
+        <div class="empty-icon"><i class="bi bi-inbox"></i></div>
+        <div class="empty-title">[[ emptyTitle ]]</div>
+        <div class="empty-description">[[ emptyDescription ]]</div>
+    </div>
+
+    <div v-else class="channels-grid">
+        <article v-for="channel in pagedChannels" :key="channel.id" class="channel-card">
+            <div class="channel-header">
+                <div class="channel-avatar">[[ initial(channel) ]]</div>
+                <div class="channel-info">
+                    <div class="channel-name">[[ channel.name || '未知目标' ]]</div>
+                    <div class="channel-type">[[ typeName(channel.type) ]]</div>
                 </div>
             </div>
-            <div class="skeleton-line"></div>
-            <div class="skeleton-line"></div>
-            <div class="skeleton-line short"></div>
-        </div>
-        <div class="loading-skeleton">
-            <div class="skeleton-header">
-                <div class="skeleton-avatar"></div>
-                <div class="skeleton-text">
-                    <div class="skeleton-line short"></div>
-                    <div class="skeleton-line"></div>
+            <div class="channel-description">[[ channel.description || '暂无描述' ]]</div>
+            <div class="channel-meta">
+                <div class="mb-1 flex items-center gap-2 text-xs text-slate-500">
+                    <span><strong>ID:</strong> <code>[[ channel.id ]]</code></span>
+                    <button class="copy-btn" @click="copyId(channel.id)" title="复制ID">
+                        <i class="bi bi-copy"></i>
+                    </button>
+                </div>
+                <div class="text-xs text-slate-500">
+                    <strong>链接:</strong>
+                    <a v-if="isHttp(channel.link)" :href="channel.link" target="_blank" class="text-blue-600">
+                        [[ channel.link ]]
+                    </a>
+                    <span v-else>[[ channel.link || '-' ]]</span>
                 </div>
             </div>
-            <div class="skeleton-line"></div>
-            <div class="skeleton-line"></div>
-            <div class="skeleton-line short"></div>
-        </div>
-        <div class="loading-skeleton">
-            <div class="skeleton-header">
-                <div class="skeleton-avatar"></div>
-                <div class="skeleton-text">
-                    <div class="skeleton-line short"></div>
-                    <div class="skeleton-line"></div>
-                </div>
-            </div>
-            <div class="skeleton-line"></div>
-            <div class="skeleton-line"></div>
-            <div class="skeleton-line short"></div>
-        </div>
+        </article>
     </div>
-    
-    <div class="channels-grid hidden" id="channels-grid">
-    </div>
-    
-    <div class="empty-state hidden" id="empty-state">
-        <div class="empty-icon">
-            <i class="bi bi-inbox"></i>
-        </div>
-        <div class="empty-title">暂无目标数据</div>
-        <div class="empty-description">您还没有加入任何群组或频道</div>
-    </div>
-</div>
 
-<div id="pagination-container" class="hidden">
-    <div class="pagination">
-        <button id="prev-btn" class="page-btn" onclick="changePage(currentPage - 1)">
+    <div v-if="totalPages > 1" class="pagination">
+        <button class="page-btn" :disabled="currentVisiblePage === 1" @click="changePage(currentVisiblePage - 1)">
             <i class="bi bi-chevron-left"></i>
         </button>
-        <div id="pagination-numbers" class="pagination-numbers"></div>
-        <button id="next-btn" class="page-btn" onclick="changePage(currentPage + 1)">
+        <button v-for="page in visiblePages" :key="page" class="page-btn" :class="{active: page === currentVisiblePage}" @click="changePage(page)">
+            [[ page ]]
+        </button>
+        <button class="page-btn" :disabled="currentVisiblePage === totalPages" @click="changePage(currentVisiblePage + 1)">
             <i class="bi bi-chevron-right"></i>
         </button>
-    </div>
-    <div class="pagination-info">
-        显示第 <span id="page-start">1</span> - <span id="page-end">50</span> 个，共 <span id="total-items">0</span> 个
+        <div class="page-info ml-5">
+            显示第 [[ pageStart ]] - [[ pageEnd ]] 个，共 [[ filteredChannels.length ]] 个
+        </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    let allChannels = [];
-    let filteredChannels = [];
-    let currentFilter = 'all';
-    let isLoading = false;
-    let currentPage = 1;
-    let itemsPerPage = 50;
-    let totalPages = 0;
-    
-    document.addEventListener('DOMContentLoaded', function() {
-        loadAccounts();
-        
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-            searchInput.addEventListener('input', debounce(filterChannels, 300));
-        }
-        
-        document.querySelectorAll('.filter-chip').forEach(chip => {
-            chip.addEventListener('click', function() {
-                document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-                this.classList.add('active');
-                currentFilter = this.dataset.filter;
-                filterChannels();
-            });
-        });
-
-    });
-    
-    async function loadAccounts() {
-        try {
-            const response = await fetch('/api/accounts');
-            const data = await response.json();
-            const select = document.getElementById('account-selector');
-            
-            select.innerHTML = '<option value="">请选择账号</option>';
-            
-            if (data.accounts && data.accounts.length > 0) {
-                data.accounts.forEach(account => {
-                    const option = document.createElement('option');
-                    option.value = account.account_id;
-                    option.textContent = `${account.phone} (${account.account_id})`;
-                    select.appendChild(option);
-                });
-                
-                select.value = data.accounts[0].account_id;
-                
-                showNotification('点击"加载目标"按钮查看目标列表', 'info');
-            }
-        } catch (error) {
-            console.error('加载账号失败:', error);
-        }
-    }
-    
-    async function loadChannelsForAccount() {
-        const accountId = document.getElementById('account-selector').value;
-        if (!accountId) {
-            showNotification('请先选择一个账号', 'warning');
-            return;
-        }
-        
-        if (isLoading) {
-            console.log('正在加载中，忽略重复请求');
-            return;
-        }
-        isLoading = true;
-        
-        currentPage = 1;
-        totalPages = 0;
-        allChannels = [];
-        filteredChannels = [];
-        
-        resetPaginationUI();
-        
-        try {
-            setVisible('loading-state', true, 'grid');
-            setVisible('channels-grid', false);
-            setVisible('empty-state', false);
-            
-            document.getElementById('total-count').textContent = '(加载中...)';
-            document.getElementById('channel-count').textContent = '(-)';
-            document.getElementById('bot-count').textContent = '(-)';
-            
-            const encodedAccountId = encodeURIComponent(accountId);
-            
-            const response = await fetch(`/api/accounts/${encodedAccountId}/channels?fetch_all=1`);
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.detail || data.error || '网络请求失败');
-            }
-            
-            if (data.success === false) {
-                throw new Error(data.error || '服务器返回错误');
-            }
-            
-            allChannels = data.channels || [];
-            console.log('加载到的目标数据:', allChannels.length, '个');
-            console.log('API返回的总数:', data.total || 'undefined');
-            console.log('是否全量模式:', data.fetch_all || false);
-            
-            const typeCounts = {
-                channel: allChannels.filter(c => c.type === 'channel').length,
-                group: allChannels.filter(c => c.type === 'group').length,
-                bot: allChannels.filter(c => c.type === 'bot').length,
-                user: allChannels.filter(c => c.type === 'user').length
-            };
-            console.log('前端统计类型分布:', typeCounts);
-            
-            if (data.total && data.total !== allChannels.length) {
-                console.warn(`数据量不匹配！后端总计: ${data.total}, 前端接收: ${allChannels.length}`);
-            }
-            
-            if (allChannels.length === 0) {
-                showEmptyWithMessage('该账号暂无群组或频道', '可能是新账号或未加入任何目标');
-                showNotification('账号暂无目标数据', 'info');
-            } else {
-                filteredChannels = [...allChannels];
-                currentFilter = 'all';
-                
-                document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-                document.querySelector('[data-filter="all"]').classList.add('active');
-                
-                updateCounts();
-                updatePagination();
-                renderChannels();
-                showNotification(`成功加载 ${allChannels.length} 个目标/群组/Bot`, 'success');
-            }
-        } catch (error) {
-            console.error('加载目标失败:', error);
-            showEmptyWithMessage('加载失败', error.message || '网络错误，请重试');
-            showNotification('加载目标失败: ' + (error.message || '网络错误'), 'error');
-        } finally {
-            isLoading = false;
-        }
-    }
-    
-
-    
-
-    
-    function filterChannels() {
-        if (!allChannels || !Array.isArray(allChannels)) {
-            filteredChannels = [];
-            updateCounts();
-            renderChannels();
-            return;
-        }
-        
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
-        
-        filteredChannels = allChannels.filter(channel => {
-            const matchesSearch = !searchTerm || 
-                (channel.name && channel.name.toLowerCase().includes(searchTerm)) ||
-                (channel.description && channel.description.toLowerCase().includes(searchTerm)) ||
-                (channel.username && channel.username.toLowerCase().includes(searchTerm));
-            
-            let matchesFilter = true;
-            if (currentFilter === 'channel') {
-                matchesFilter = channel.type === 'channel';
-            } else if (currentFilter === 'group') {
-                matchesFilter = channel.type === 'group';
-            } else if (currentFilter === 'bot') {
-                matchesFilter = channel.type === 'bot';
-            } else if (currentFilter === 'user') {
-                matchesFilter = channel.type === 'user';
-            }
-            
-            return matchesSearch && matchesFilter;
-        });
-        
-        currentPage = 1;
-        
-        updateCounts();
-        updatePagination();
-        renderChannels();
-    }
-    
-    function updateCounts() {
-        const totalCount = allChannels.length;
-        const channelCount = allChannels.filter(c => c.type === 'channel').length;
-        const groupCount = allChannels.filter(c => c.type === 'group').length;
-        const botCount = allChannels.filter(c => c.type === 'bot').length;
-        const userCount = allChannels.filter(c => c.type === 'user').length;
-        
-        document.getElementById('total-count').textContent = `(${totalCount})`;
-        document.getElementById('channel-count').textContent = `(${channelCount})`;
-        document.getElementById('group-count').textContent = `(${groupCount})`;
-        document.getElementById('bot-count').textContent = `(${botCount})`;
-        document.getElementById('user-count').textContent = `(${userCount})`;
-    }
-    
-    function renderChannels() {
-        const loadingState = document.getElementById('loading-state');
-        const grid = document.getElementById('channels-grid');
-        const emptyState = document.getElementById('empty-state');
-        
-        try {
-            setVisible(loadingState, false);
-            
-            if (!filteredChannels || filteredChannels.length === 0) {
-                setVisible(grid, false);
-                setVisible(emptyState, true);
-                return;
-            }
-            
-            setVisible(grid, true, 'grid');
-            setVisible(emptyState, false);
-            
-            totalPages = Math.ceil(filteredChannels.length / itemsPerPage);
-            const startIndex = (currentPage - 1) * itemsPerPage;
-            const endIndex = startIndex + itemsPerPage;
-            const channelsToRender = filteredChannels.slice(startIndex, endIndex);
-            
-            let html = '';
-            for (let i = 0; i < channelsToRender.length; i++) {
-                const channel = channelsToRender[i];
-                const name = String(channel.name || '未知目标').substring(0, 50);
-                const desc = String(channel.description || '').substring(0, 100);
-                const initial = name ? name.charAt(0).toUpperCase() : '?';
-                
-                let typeText = '频道';
-                let typeClass = 'channel';
-                if (channel.type === 'group') {
-                    typeText = '群组';
-                    typeClass = 'group';
-                } else if (channel.type === 'bot') {
-                    typeText = 'Bot';
-                    typeClass = 'bot';
-                }
-                
-                let linkHtml = '';
-                if (channel.link) {
-                    if (channel.link.startsWith('http')) {
-                        linkHtml = `<a href="${channel.link}" target="_blank" class="text-primary">${channel.link}</a>`;
-                    } else {
-                        linkHtml = `<span class="text-muted">${channel.link}</span>`;
-                    }
-                } else {
-                    linkHtml = '<span class="text-muted">-</span>';
-                }
-                
-                html += `
-                    <div class="channel-card">
-                        <div class="channel-header">
-                            <div class="channel-avatar ${typeClass}">${initial}</div>
-                            <div class="channel-info">
-                                <div class="channel-name">${name}</div>
-                                <div class="channel-type">${typeText}</div>
-                            </div>
-                        </div>
-                        <div class="channel-description">${desc || '暂无描述'}</div>
-                        <div class="channel-meta">
-                            <div class="mb-1 flex items-center gap-2 text-xs text-slate-500">
-                                <span><strong>ID:</strong> <code>${channel.id}</code></span>
-                                <button class="copy-btn" onclick="copyToClipboard('${channel.id}'); event.stopPropagation();" title="复制ID">
-                                    <i class="bi bi-copy"></i>
-                                </button>
-                            </div>
-                            <div class="text-xs text-slate-500">
-                                <strong>链接:</strong> ${linkHtml}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            grid.innerHTML = html;
-            
-            const pageStart = startIndex + 1;
-            const pageEnd = Math.min(endIndex, filteredChannels.length);
-            document.getElementById('page-start').textContent = pageStart;
-            document.getElementById('page-end').textContent = pageEnd;
-            document.getElementById('total-items').textContent = filteredChannels.length;
-            
-        } catch (error) {
-            console.error('渲染目标列表失败:', error);
-            grid.innerHTML = '<div class="p-5 text-center text-red-600">渲染失败</div>';
-        }
-    }
-    
-    function showEmpty() {
-        setVisible('loading-state', false);
-        setVisible('channels-grid', false);
-        setVisible('empty-state', true);
-        
-        document.getElementById('total-count').textContent = '(0)';
-        document.getElementById('channel-count').textContent = '(0)';
-        document.getElementById('bot-count').textContent = '(0)';
-    }
-    
-    function showEmptyWithMessage(title, description) {
-        setVisible('loading-state', false);
-        setVisible('channels-grid', false);
-        setVisible('empty-state', true);
-        
-        const emptyTitle = document.querySelector('.empty-title');
-        const emptyDescription = document.querySelector('.empty-description');
-        if (emptyTitle) emptyTitle.textContent = title;
-        if (emptyDescription) emptyDescription.textContent = description;
-        
-        document.getElementById('total-count').textContent = '(0)';
-        document.getElementById('channel-count').textContent = '(0)';
-        document.getElementById('bot-count').textContent = '(0)';
-    }
-    
-    function formatNumber(num) {
-        if (num >= 1000000) {
-            return (num / 1000000).toFixed(1) + 'M';
-        } else if (num >= 1000) {
-            return (num / 1000).toFixed(1) + 'K';
-        }
-        return num.toString();
-    }
-    
-    function resetPaginationUI() {
-        const paginationContainer = document.getElementById('pagination-container');
-        const paginationNumbers = document.getElementById('pagination-numbers');
-        const prevBtn = document.getElementById('prev-btn');
-        const nextBtn = document.getElementById('next-btn');
-        
-        if (paginationContainer) paginationContainer.classList.add('hidden');
-        if (paginationNumbers) paginationNumbers.innerHTML = '';
-        if (prevBtn) {
-            prevBtn.disabled = true;
-            prevBtn.className = 'page-btn disabled';
-        }
-        if (nextBtn) {
-            nextBtn.disabled = true;
-            nextBtn.className = 'page-btn disabled';
-        }
-        
-        const pageStartEl = document.getElementById('page-start');
-        const pageEndEl = document.getElementById('page-end');
-        const totalItemsEl = document.getElementById('total-items');
-        if (pageStartEl) pageStartEl.textContent = '0';
-        if (pageEndEl) pageEndEl.textContent = '0';
-        if (totalItemsEl) totalItemsEl.textContent = '0';
-    }
-    
-    function updatePagination() {
-        const paginationContainer = document.getElementById('pagination-container');
-        const paginationNumbers = document.getElementById('pagination-numbers');
-        const prevBtn = document.getElementById('prev-btn');
-        const nextBtn = document.getElementById('next-btn');
-        
-        if (!paginationContainer || !paginationNumbers || !prevBtn || !nextBtn) {
-            console.warn('分页组件元素未找到');
-            return;
-        }
-        
-        if (!filteredChannels || filteredChannels.length === 0) {
-            resetPaginationUI();
-            return;
-        }
-        
-        totalPages = Math.ceil(filteredChannels.length / itemsPerPage);
-        
-        if (totalPages <= 1) {
-            paginationNumbers.innerHTML = '';
-            prevBtn.disabled = true;
-            prevBtn.className = 'page-btn disabled';
-            nextBtn.disabled = true;
-            nextBtn.className = 'page-btn disabled';
-            paginationContainer.classList.add('hidden');
-            return;
-        }
-        
-        paginationContainer.classList.remove('hidden');
-        
-        prevBtn.disabled = currentPage === 1;
-        prevBtn.className = `page-btn ${currentPage === 1 ? 'disabled' : ''}`;
-        
-        nextBtn.disabled = currentPage === totalPages;
-        nextBtn.className = `page-btn ${currentPage === totalPages ? 'disabled' : ''}`;
-        
-        let html = '';
-        const maxPages = 5;
-        let startPage = Math.max(1, currentPage - Math.floor(maxPages / 2));
-        let endPage = Math.min(totalPages, startPage + maxPages - 1);
-        
-        if (endPage - startPage + 1 < maxPages) {
-            startPage = Math.max(1, endPage - maxPages + 1);
-        }
-        
-        for (let i = startPage; i <= endPage; i++) {
-            html += `
-                <button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">
-                    ${i}
-                </button>
-            `;
-        }
-        
-        paginationNumbers.innerHTML = html;
-        
-        const pageStart = (currentPage - 1) * itemsPerPage + 1;
-        const pageEnd = Math.min(currentPage * itemsPerPage, filteredChannels.length);
-        const pageStartEl = document.getElementById('page-start');
-        const pageEndEl = document.getElementById('page-end');
-        const totalItemsEl = document.getElementById('total-items');
-        
-        if (pageStartEl) pageStartEl.textContent = pageStart;
-        if (pageEndEl) pageEndEl.textContent = pageEnd;
-        if (totalItemsEl) totalItemsEl.textContent = filteredChannels.length;
-    }
-    
-    function changePage(page) {
-        if (page < 1 || page > totalPages || page === currentPage) return;
-        currentPage = page;
-        renderChannels();
-        updatePagination();
-    }
-    
-    async function exportChannels() {
-        if (!allChannels || allChannels.length === 0) {
-            showNotification('暂无目标数据可导出', 'warning');
-            return;
-        }
-        
-        try {
-            const accountId = document.getElementById('account-selector').value;
-            const accountName = document.getElementById('account-selector').selectedOptions[0].text;
-            
-            const exportData = {
-                export_time: new Date().toISOString(),
-                account: {
-                    id: accountId,
-                    name: accountName
-                },
-                channels: allChannels.map(channel => ({
-                    id: channel.id,
-                    name: channel.name,
-                    type: channel.type,
-                    username: channel.username,
-                    link: channel.link,
-                    description: channel.description,
-                    members_count: channel.members_count
-                }))
-            };
-            
-            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `channels_${accountId}_${new Date().getTime()}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-            
-            showNotification('目标列表导出成功', 'success');
-        } catch (error) {
-            console.error('导出失败:', error);
-            showNotification('导出失败: ' + error.message, 'error');
-        }
-    }
-    
-    function copyToClipboard(text) {
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(text).then(() => {
-                showNotification('ID已复制到剪贴板', 'success');
-            }).catch(err => {
-                console.error('复制失败:', err);
-                showNotification('复制失败', 'error');
-            });
-        } else {
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            document.body.appendChild(textArea);
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                showNotification('ID已复制到剪贴板', 'success');
-            } catch (err) {
-                console.error('复制失败:', err);
-                showNotification('复制失败', 'error');
-            }
-            document.body.removeChild(textArea);
-        }
-    }
-    
-    function debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
-</script>
+<script src="/static/js/channels.js"></script>
 {% endblock %}

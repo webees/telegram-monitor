@@ -5,15 +5,18 @@
 {% block page_subtitle %}只保留最新 500 条，失败可重试{% endblock %}
 
 {% block content %}
-<section class="data-card">
+<section id="forwards-app" class="data-card" v-cloak>
     <div class="mb-4 flex flex-wrap gap-2">
-        <select id="status-filter" class="form-input max-w-40">
+        <select v-model="status" class="form-input max-w-40" @change="load">
             <option value="">全部</option>
             <option value="failed">失败</option>
             <option value="success">成功</option>
             <option value="pending">等待</option>
         </select>
-        <button class="btn btn-secondary" onclick="loadForwards()">刷新</button>
+        <button class="btn btn-secondary" :disabled="loading" @click="load">
+            <i class="bi bi-arrow-clockwise"></i>
+            [[ loading ? '加载中' : '刷新' ]]
+        </button>
     </div>
     <div class="table-responsive">
         <table class="table">
@@ -30,8 +33,28 @@
                     <th>操作</th>
                 </tr>
             </thead>
-            <tbody id="forward-rows">
-                <tr><td colspan="9">加载中...</td></tr>
+            <tbody>
+                <tr v-if="loading">
+                    <td colspan="9">加载中...</td>
+                </tr>
+                <tr v-else-if="!records.length">
+                    <td colspan="9">暂无记录</td>
+                </tr>
+                <tr v-for="row in records" :key="row.id">
+                    <td>[[ row.id ]]</td>
+                    <td>[[ statusText(row.status) ]]</td>
+                    <td>[[ row.account_id ]]</td>
+                    <td>[[ row.source_chat_id ]]/[[ row.source_message_id ]]</td>
+                    <td>[[ row.target_id ]]</td>
+                    <td>[[ row.attempts ]]</td>
+                    <td>[[ row.updated_at ]]</td>
+                    <td :title="row.last_error">[[ shortError(row.last_error) ]]</td>
+                    <td>
+                        <button v-if="row.status === 'failed'" class="btn btn-primary btn-sm" @click="retry(row.id)">
+                            重试
+                        </button>
+                    </td>
+                </tr>
             </tbody>
         </table>
     </div>
@@ -39,36 +62,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-const tbody = document.getElementById('forward-rows');
-const statusText = status => ({success: '成功', failed: '失败', pending: '等待'}[status] || status);
-
-async function loadForwards() {
-    const status = document.getElementById('status-filter').value;
-    const data = await fetch(`/api/forwards?limit=500${status ? `&status=${status}` : ''}`).then(r => r.json());
-    const rows = data.records || [];
-    tbody.innerHTML = rows.length ? rows.map(row => `
-        <tr>
-            <td>${row.id}</td>
-            <td>${statusText(row.status)}</td>
-            <td>${esc(row.account_id)}</td>
-            <td>${row.source_chat_id}/${row.source_message_id}</td>
-            <td>${row.target_id}</td>
-            <td>${row.attempts}</td>
-            <td>${esc(row.updated_at)}</td>
-            <td title="${esc(row.last_error)}">${esc(row.last_error).slice(0, 80)}</td>
-            <td>${row.status === 'failed' ? `<button class="btn btn-primary btn-sm" onclick="retryForward(${row.id})">重试</button>` : ''}</td>
-        </tr>
-    `).join('') : '<tr><td colspan="9">暂无记录</td></tr>';
-}
-
-async function retryForward(id) {
-    const result = await fetch(`/api/forwards/${id}/retry`, {method: 'POST'}).then(r => r.json());
-    if (!result.success) alert(result.message || '重试失败');
-    await loadForwards();
-}
-
-document.getElementById('status-filter').addEventListener('change', loadForwards);
-loadForwards();
-</script>
+<script src="/static/js/forwards.js"></script>
 {% endblock %}

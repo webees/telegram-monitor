@@ -1,815 +1,190 @@
 {% extends "base.html" %}
 
 {% block title %}计划任务{% endblock %}
-
 {% block page_title %}计划任务{% endblock %}
 {% block page_subtitle %}配置定时发送的消息{% endblock %}
 
-
 {% block content %}
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-header">
-            <div class="stat-title">总消息数</div>
-            <div class="stat-icon">
-                <i class="bi bi-envelope"></i>
+<div id="scheduled-app" v-cloak>
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-header">
+                <div class="stat-title">总消息数</div>
+                <div class="stat-icon"><i class="bi bi-envelope"></i></div>
             </div>
+            <div class="stat-value">[[ stats.total_count ]]</div>
+            <div class="stat-footer">所有计划任务</div>
         </div>
-        <div class="stat-value" id="total-messages-count">-</div>
-        <div class="stat-footer">
-            所有计划任务
+        <div class="stat-card" :class="stats.paused_count > 0 ? 'border-l-4 border-l-amber-500' : ''">
+            <div class="stat-header">
+                <div class="stat-title">已暂停</div>
+                <div class="stat-icon"><i class="bi bi-pause-circle"></i></div>
+            </div>
+            <div class="stat-value">[[ stats.paused_count ]]</div>
+            <div class="stat-footer">暂停或达到限制</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-header">
+                <div class="stat-title">总执行次数</div>
+                <div class="stat-icon"><i class="bi bi-arrow-repeat"></i></div>
+            </div>
+            <div class="stat-value">[[ stats.total_executions ]]</div>
+            <div class="stat-footer">累计执行统计</div>
         </div>
     </div>
-    
-    
-    <div class="stat-card warning">
-        <div class="stat-header">
-            <div class="stat-title">已暂停</div>
-            <div class="stat-icon">
-                <i class="bi bi-pause-circle"></i>
-            </div>
-        </div>
-        <div class="stat-value" id="paused-messages-count">-</div>
-        <div class="stat-footer">
-            暂停或达到限制
-        </div>
-    </div>
-    
-    <div class="stat-card info">
-        <div class="stat-header">
-            <div class="stat-title">总执行次数</div>
-            <div class="stat-icon">
-                <i class="bi bi-arrow-repeat"></i>
-            </div>
-        </div>
-        <div class="stat-value" id="total-executions-count">-</div>
-        <div class="stat-footer">
-            累计执行统计
-        </div>
-    </div>
-</div>
 
-<div class="action-bar">
-    <button class="btn btn-primary" onclick="showAddModal()">
-        <i class="bi bi-plus-lg"></i>
-        添加计划任务
-    </button>
-    <button class="btn btn-secondary" onclick="loadMessages()">
-        <i class="bi bi-arrow-clockwise"></i>
-        刷新
-    </button>
-    
-    <div>
-        <span class="text-muted">共 <span id="message-count">0</span> 条计划任务</span>
-    </div>
-</div>
-
-<div id="messages-container">
-    <div class="messages-grid" id="messages-grid">
-    </div>
-    
-    <div class="empty-state hidden" id="empty-state">
-        <div class="empty-icon">
-            <i class="bi bi-calendar-x"></i>
-        </div>
-        <div class="empty-title">暂无计划任务</div>
-        <div class="empty-description">点击上方按钮添加您的第一条计划任务</div>
-        <button class="btn btn-primary" onclick="showAddModal()">
+    <div class="action-bar">
+        <button class="btn btn-primary" @click="openModal()">
             <i class="bi bi-plus-lg"></i>
             添加计划任务
         </button>
+        <button class="btn btn-secondary" :disabled="loading" @click="loadMessages">
+            <i class="bi bi-arrow-clockwise"></i>
+            刷新
+        </button>
+        <div><span class="text-muted">共 [[ messages.length ]] 条计划任务</span></div>
     </div>
-</div>
 
-<div class="modal" id="messageModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 class="modal-title" id="modalTitle">添加计划任务</h3>
-            <button class="modal-close" onclick="closeModal()">
-                <i class="bi bi-x"></i>
-            </button>
-        </div>
-        
-        <div class="modal-body">
-            <form id="messageForm">
-                <div class="form-group">
-                    <label class="form-label">选择账号</label>
-                    <select class="form-select" id="account-selector" required>
-                        <option value="">加载账号中...</option>
-                    </select>
+    <div v-if="!messages.length && !loading" class="empty-state">
+        <div class="empty-icon"><i class="bi bi-calendar-x"></i></div>
+        <div class="empty-title">暂无计划任务</div>
+        <div class="empty-description">点击上方按钮添加您的第一条计划任务</div>
+        <button class="btn btn-primary" @click="openModal()"><i class="bi bi-plus-lg"></i> 添加计划任务</button>
+    </div>
+
+    <div v-else class="messages-grid">
+        <article v-for="msg in messages" :key="messageId(msg)" class="message-card">
+            <div class="message-header">
+                <div>
+                    <div class="message-title">计划任务 #[[ messageId(msg) ]]</div>
+                    <div class="text-sm text-slate-500"><i class="bi bi-clock"></i> [[ scheduleText(msg) ]]</div>
                 </div>
-                
-                <div class="form-group">
-                    <label class="form-label">消息类型</label>
-                    <div class="mb-3 flex gap-4">
-                        <label class="radio-label">
-                            <input type="radio" name="message_type" value="text" checked onchange="toggleMessageType()">
-                            <span>文本消息</span>
-                        </label>
-                        <label class="radio-label">
-                            <input type="radio" name="message_type" value="ai" onchange="toggleMessageType()">
-                            <span>AI生成消息</span>
-                        </label>
+                <span class="message-status">[[ msg.active === false ? '已暂停' : '运行中' ]]</span>
+            </div>
+            <div class="message-content">
+                <span v-if="msg.use_ai"><i class="bi bi-robot"></i> AI生成内容</span>
+                <span v-else>[[ msg.message ]]</span>
+                <span v-if="msg.delete_after_send || msg.delete_after_sending" class="ml-2 text-amber-600">
+                    <i class="bi bi-trash"></i> 发送后删除
+                </span>
+            </div>
+            <div class="message-target">
+                <i class="bi bi-send"></i>
+                目标: [[ msg.channel_id || msg.target_id || '未设置' ]]
+            </div>
+            <div class="message-actions">
+                <button class="btn btn-sm" :class="msg.active !== false ? 'btn-warning' : 'btn-success'" @click="toggleStatus(msg)">
+                    <i :class="msg.active !== false ? 'bi bi-pause' : 'bi bi-play'"></i>
+                </button>
+                <button class="btn btn-sm btn-info" @click="selectedMessage = msg"><i class="bi bi-eye"></i></button>
+                <button class="btn btn-sm" @click="openModal(msg)"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-danger btn-sm" @click="deleteMessage(msg)"><i class="bi bi-trash"></i></button>
+            </div>
+        </article>
+    </div>
+
+    <div class="modal" :class="{show: showModal}" @click.self="closeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">[[ editingId ? '编辑计划任务' : '添加计划任务' ]]</h3>
+                <button class="modal-close" @click="closeModal"><i class="bi bi-x"></i></button>
+            </div>
+            <form ref="formEl" @submit.prevent="saveMessage">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">选择账号</label>
+                        <select v-model="form.account_id" class="form-select" required>
+                            <option value="">请选择账号</option>
+                            <option v-for="account in accounts" :key="account.account_id" :value="account.account_id">
+                                [[ account.phone ]] ([[ account.account_id ]])
+                            </option>
+                        </select>
                     </div>
-                </div>
-                
-                <div class="form-group" id="text-message-group">
-                    <label class="form-label">消息内容</label>
-                    <textarea class="form-textarea" id="message-content" placeholder="输入要发送的消息内容"></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">目标 ID</label>
-                    <input type="text" class="form-input" id="target-channel" placeholder="输入群组或目标ID（如：-1001234567890）" required>
-                    <small class="text-muted">请输入完整的群组或目标ID，可通过@userinfobot获取</small>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">定时模式</label>
-                    <select class="form-select" id="schedule-mode" onchange="toggleScheduleMode()">
-                        <option value="cron">Cron表达式（精确时间）</option>
-                        <option value="interval">间隔发送（固定间隔）</option>
-                    </select>
-                </div>
-                
-                <div class="form-group" id="cron-group">
-                    <label class="form-label">
-                        定时规则 (Cron表达式)
-                        <button type="button" class="btn btn-sm btn-info ml-2" onclick="showCronHelp()">
-                            <i class="bi bi-question-circle"></i> 帮助
-                        </button>
+                    <div class="form-group">
+                        <label class="form-label">消息类型</label>
+                        <div class="mb-3 flex gap-4">
+                            <label class="radio-label"><input v-model="form.message_type" type="radio" value="text"> <span>文本消息</span></label>
+                            <label class="radio-label"><input v-model="form.message_type" type="radio" value="ai"> <span>AI生成消息</span></label>
+                        </div>
+                    </div>
+                    <div v-if="form.message_type === 'text'" class="form-group">
+                        <label class="form-label">消息内容</label>
+                        <textarea v-model.trim="form.message" class="form-textarea" placeholder="输入要发送的消息内容" required></textarea>
+                    </div>
+                    <div v-else class="form-group">
+                        <label class="form-label">AI提示词</label>
+                        <textarea v-model.trim="form.ai_prompt" class="form-textarea" placeholder="输入AI生成内容的提示词" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">目标 ID</label>
+                        <input v-model.trim="form.channel_id" type="text" class="form-input" placeholder="-1001234567890" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">定时模式</label>
+                        <select v-model="form.schedule_mode" class="form-select">
+                            <option value="cron">Cron表达式（精确时间）</option>
+                            <option value="interval">间隔发送（固定间隔）</option>
+                        </select>
+                    </div>
+                    <div v-if="form.schedule_mode === 'cron'" class="form-group">
+                        <label class="form-label">
+                            定时规则 (Cron表达式)
+                            <button type="button" class="btn btn-sm btn-info ml-2" @click="showCronHelp">
+                                <i class="bi bi-question-circle"></i> 帮助
+                            </button>
+                        </label>
+                        <input v-model.trim="form.schedule" type="text" class="form-input" placeholder="0 9 * * *" required>
+                        <small class="text-muted">格式: 分 时 日 月 周</small>
+                    </div>
+                    <div v-else class="form-group">
+                        <label class="form-label">发送间隔</label>
+                        <div class="flex items-center gap-2">
+                            <input v-model.number="form.interval_hours" type="number" class="form-input flex-1" min="0" placeholder="小时">
+                            <span>小时</span>
+                            <input v-model.number="form.interval_minutes" type="number" class="form-input flex-1" min="0" max="59" placeholder="分钟">
+                            <span>分钟</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">随机延迟 (秒)</label>
+                        <input v-model.number="form.random_delay" type="number" class="form-input" min="0" max="3600">
+                    </div>
+                    <label class="form-checkbox">
+                        <input v-model="form.delete_after_send" type="checkbox">
+                        <span>发送后删除消息</span>
                     </label>
-                    <input type="text" class="form-input" id="cron-expression" placeholder="例如: 0 9 * * * = 每天9:00">
-                    <small class="text-muted">
-                        格式: 分(0-59) 时(0-23) 日(1-31) 月(1-12) 周(0-6)<br>
-                        <span id="cron-validation-error" class="hidden text-red-600"></span>
-                    </small>
-                </div>
-                
-                <div class="form-group hidden" id="interval-group">
-                    <label class="form-label">发送间隔</label>
-                    <div class="flex items-center gap-2">
-                        <input type="number" class="form-input flex-1" id="interval-hours" placeholder="小时" min="0">
-                        <span>小时</span>
-                        <input type="number" class="form-input flex-1" id="interval-minutes" placeholder="分钟" min="0" max="59">
-                        <span>分钟</span>
+                    <div class="form-group">
+                        <label class="form-label">最大执行次数</label>
+                        <input v-model.number="form.max_executions" type="number" class="form-input" min="1" placeholder="不限制">
                     </div>
-                    <small class="text-muted">
-                        设置每隔多长时间发送一次消息，例如：20小时30分钟<br>
-                        <span id="interval-validation-error" class="hidden text-red-600"></span>
-                    </small>
                 </div>
-                
-                <div class="form-group hidden" id="ai-prompt-group">
-                    <label class="form-label">AI提示词</label>
-                    <textarea class="form-textarea" id="ai-prompt" placeholder="输入AI生成内容的提示词"></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">随机延迟 (秒)</label>
-                    <input type="number" class="form-input" id="random-delay" placeholder="0-3600秒内随机延迟" min="0" max="3600">
-                    <div class="form-help">设置后，每次发送会在指定秒数内随机延迟</div>
-                </div>
-                
-                <div class="form-group">
-                    <div class="form-checkbox">
-                        <input type="checkbox" id="delete-after-send">
-                        <label for="delete-after-send">发送后删除消息</label>
-                    </div>
-                    <small class="text-muted">勾选后，消息发送成功后将自动删除</small>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">最大执行次数</label>
-                    <input type="number" class="form-input" id="max-executions" placeholder="不限制" min="1">
-                    <small class="text-muted">留空表示不限制执行次数</small>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @click="closeModal">取消</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> 保存</button>
                 </div>
             </form>
         </div>
-        
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
-            <button class="btn btn-primary" onclick="saveMessage()">
-                <i class="bi bi-check-lg"></i>
-                保存
-            </button>
+    </div>
+
+    <div v-if="selectedMessage" class="config-modal-overlay" @click.self="selectedMessage = null">
+        <div class="config-modal-content">
+            <div class="config-modal-header">
+                <h3 class="text-lg font-semibold">计划任务详情</h3>
+                <button class="config-modal-close" @click="selectedMessage = null"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="config-modal-body">
+                <div class="config-summary">
+                    <div v-for="row in detailRows(selectedMessage)" :key="row.label" class="config-row" :class="{'config-row-wide': row.wide}">
+                        <span class="config-row-label">[[ row.label ]]</span>
+                        <span class="config-row-value">[[ row.value ]]</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    let messages = [];
-    let editingId = null;
-    
-    document.addEventListener('DOMContentLoaded', function() {
-        loadMessages();
-        loadAccounts();
-        
-        const cronInput = document.getElementById('cron-expression');
-        if (cronInput) {
-            cronInput.addEventListener('blur', validateCronExpression);
-            cronInput.addEventListener('input', clearCronError);
-        }
-    });
-    
-    function validateCronExpression() {
-        const cronInput = document.getElementById('cron-expression');
-        const errorSpan = document.getElementById('cron-validation-error');
-        const cronValue = cronInput.value.trim();
-        
-        if (!cronValue) {
-            clearCronError();
-            return;
-        }
-        
-        const cronParts = cronValue.split(' ');
-        if (cronParts.length !== 5) {
-            showCronError('Cron表达式必须包含5个部分：分 时 日 月 周');
-            return;
-        }
-        
-        const hourPart = cronParts[1];
-        if (hourPart !== '*' && !hourPart.includes('/') && !hourPart.includes('-')) {
-            const hours = hourPart.split(',');
-            for (const hour of hours) {
-                const hourNum = parseInt(hour.trim());
-                if (!isNaN(hourNum) && (hourNum < 0 || hourNum > 23)) {
-                    showCronError(`小时值 ${hourNum} 无效，必须在0-23之间`);
-                    return;
-                }
-            }
-        }
-        
-        const minutePart = cronParts[0];
-        if (minutePart !== '*' && !minutePart.includes('/') && !minutePart.includes('-')) {
-            const minutes = minutePart.split(',');
-            for (const minute of minutes) {
-                const minuteNum = parseInt(minute.trim());
-                if (!isNaN(minuteNum) && (minuteNum < 0 || minuteNum > 59)) {
-                    showCronError(`分钟值 ${minuteNum} 无效，必须在0-59之间`);
-                    return;
-                }
-            }
-        }
-        
-        clearCronError();
-    }
-    
-    function showCronError(message) {
-        const errorSpan = document.getElementById('cron-validation-error');
-        errorSpan.textContent = message;
-        errorSpan.classList.remove('hidden');
-        document.getElementById('cron-expression').classList.add('border-red-500');
-    }
-    
-    function clearCronError() {
-        const errorSpan = document.getElementById('cron-validation-error');
-        if (errorSpan) {
-            errorSpan.classList.add('hidden');
-        }
-        const cronInput = document.getElementById('cron-expression');
-        if (cronInput) {
-            cronInput.classList.remove('border-red-500');
-        }
-    }
-    
-    function formatScheduleDisplay(msg) {
-        if (msg.schedule_mode === 'interval') {
-            const parts = (msg.schedule || '').split(' ');
-            if (parts.length === 2) {
-                const hours = parseInt(parts[0]) || 0;
-                const minutes = parseInt(parts[1]) || 0;
-                let display = '每隔 ';
-                if (hours > 0) {
-                    display += `${hours}小时`;
-                }
-                if (minutes > 0) {
-                    if (hours > 0) display += ' ';
-                    display += `${minutes}分钟`;
-                }
-                return display;
-            }
-        }
-        return msg.schedule || '未设置';
-    }
-    
-    function toggleScheduleMode() {
-        const mode = document.getElementById('schedule-mode').value;
-        const cronGroup = document.getElementById('cron-group');
-        const intervalGroup = document.getElementById('interval-group');
-        
-        if (mode === 'cron') {
-            setVisible(cronGroup, true);
-            setVisible(intervalGroup, false);
-            document.getElementById('cron-expression').required = true;
-            document.getElementById('interval-hours').required = false;
-            document.getElementById('interval-minutes').required = false;
-        } else {
-            setVisible(cronGroup, false);
-            setVisible(intervalGroup, true);
-            document.getElementById('cron-expression').required = false;
-            document.getElementById('interval-hours').required = true;
-            document.getElementById('interval-minutes').required = true;
-        }
-        
-        clearCronError();
-        clearIntervalError();
-    }
-    
-    function validateInterval() {
-        const hours = parseInt(document.getElementById('interval-hours').value) || 0;
-        const minutes = parseInt(document.getElementById('interval-minutes').value) || 0;
-        
-        if (hours === 0 && minutes === 0) {
-            showIntervalError('间隔时间不能为0');
-            return false;
-        }
-        
-        if (minutes > 59) {
-            showIntervalError('分钟值必须在0-59之间');
-            return false;
-        }
-        
-        clearIntervalError();
-        return true;
-    }
-    
-    function showIntervalError(message) {
-        const errorSpan = document.getElementById('interval-validation-error');
-        errorSpan.textContent = message;
-        errorSpan.classList.remove('hidden');
-        document.getElementById('interval-hours').classList.add('border-red-500');
-        document.getElementById('interval-minutes').classList.add('border-red-500');
-    }
-    
-    function clearIntervalError() {
-        const errorSpan = document.getElementById('interval-validation-error');
-        if (errorSpan) {
-            errorSpan.classList.add('hidden');
-        }
-        const hoursInput = document.getElementById('interval-hours');
-        const minutesInput = document.getElementById('interval-minutes');
-        if (hoursInput) {
-            hoursInput.classList.remove('border-red-500');
-        }
-        if (minutesInput) {
-            minutesInput.classList.remove('border-red-500');
-        }
-    }
-    
-    async function showCronHelp() {
-        try {
-            const response = await fetch('/api/cron-examples');
-            const data = await response.json();
-            
-            if (data.success && data.examples) {
-                let helpText = "🕐 常用Cron表达式示例：\n\n";
-                data.examples.forEach(example => {
-                    helpText += `${example.expression} → ${example.description}\n`;
-                });
-                
-                helpText += "\n📋 格式说明：\n";
-                helpText += "分钟(0-59) 小时(0-23) 日期(1-31) 月份(1-12) 星期(0-6)\n\n";
-                helpText += "🔧 特殊字符：\n";
-                helpText += "* = 任意值\n";
-                helpText += "*/5 = 每5个单位\n";
-                helpText += "1,3,5 = 指定多个值\n";
-                helpText += "1-5 = 指定范围\n\n";
-                helpText += "⚠️ 注意：星期0=周日，1=周一...6=周六";
-                
-                alert(helpText);
-            }
-        } catch (error) {
-            console.error('获取Cron示例失败:', error);
-            const helpText = `🕐 Cron表达式格式：分 时 日 月 周
-
-📋 常用示例：
-0 9 * * * → 每天9:00
-30 18 * * * → 每天18:30  
-0 */2 * * * → 每2小时
-0 9 * * 1 → 每周一9:00
-0 9 1 * * → 每月1日9:00
-
-⚠️ 注意：小时为0-23，分钟为0-59
-星期：0=周日，1=周一...6=周六`;
-            alert(helpText);
-        }
-    }
-    
-    async function loadAccounts() {
-        try {
-            const response = await fetch('/api/accounts');
-            const data = await response.json();
-            const select = document.getElementById('account-selector');
-            
-            select.innerHTML = '<option value="">请选择账号</option>';
-            
-            if (data.accounts && data.accounts.length > 0) {
-                data.accounts.forEach(account => {
-                    const option = document.createElement('option');
-                    option.value = account.account_id;
-                    option.textContent = `${account.phone} (${account.account_id})`;
-                    select.appendChild(option);
-                });
-            }
-        } catch (error) {
-            console.error('加载账号失败:', error);
-        }
-    }
-    
-    async function loadMessages() {
-        try {
-            const response = await fetch('/api/scheduled-messages');
-            const data = await response.json();
-            messages = data.messages || [];
-            
-            if (data.statistics) {
-                updateStatisticsFromAPI(data.statistics);
-            }
-            
-            renderMessages();
-        } catch (error) {
-            console.error('加载计划任务失败:', error);
-        }
-    }
-    
-    function updateStatisticsFromAPI(stats) {
-        document.getElementById('total-messages-count').textContent = stats.total_count || 0;
-        document.getElementById('paused-messages-count').textContent = stats.paused_count || 0;
-        document.getElementById('total-executions-count').textContent = stats.total_executions || 0;
-        
-        const pausedCard = document.querySelector('#paused-messages-count').closest('.stat-card');
-        if (stats.paused_count > 0) {
-            pausedCard.classList.add('border-l-4', 'border-l-amber-500');
-        } else {
-            pausedCard.classList.remove('border-l-4', 'border-l-amber-500');
-        }
-    }
-    
-    function updateStatistics() {
-        if (!messages) return;
-        
-        const totalCount = messages.length;
-        const pausedCount = messages.filter(msg => msg.active === false).length;
-        const totalExecutions = messages.reduce((sum, msg) => sum + (msg.execution_count || 0), 0);
-        
-        document.getElementById('total-messages-count').textContent = totalCount;
-        document.getElementById('paused-messages-count').textContent = pausedCount;
-        document.getElementById('total-executions-count').textContent = totalExecutions;
-        
-        const pausedCard = document.querySelector('#paused-messages-count').closest('.stat-card');
-        if (pausedCard) {
-            if (pausedCount > 0) {
-                pausedCard.classList.add('border-l-4', 'border-l-amber-500');
-            } else {
-                pausedCard.classList.remove('border-l-4', 'border-l-amber-500');
-            }
-        }
-    }
-    
-    function renderMessages() {
-        const grid = document.getElementById('messages-grid');
-        const emptyState = document.getElementById('empty-state');
-        const count = document.getElementById('message-count');
-        
-        count.textContent = messages.length;
-        
-        if (messages.length === 0) {
-            setVisible(grid, false);
-            setVisible(emptyState, true);
-            return;
-        }
-        
-        setVisible(grid, true, 'grid');
-        setVisible(emptyState, false);
-        
-        grid.innerHTML = messages.map(msg => `
-            <div class="message-card">
-                <div class="message-card-header">
-                    <div>
-                        <div class="message-card-title">计划任务 #${msg.job_id || msg.id}</div>
-                        <div class="message-card-time">
-                            <i class="bi bi-clock"></i> ${formatScheduleDisplay(msg)}
-                        </div>
-                    </div>
-                    <div class="message-card-actions">
-                        <button class="btn btn-icon" onclick="editMessage('${msg.job_id || msg.id}')" title="编辑">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-danger btn-icon" onclick="deleteMessage('${msg.job_id || msg.id}')" title="删除">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="message-card-body">
-                    <div class="message-content">
-                        ${msg.use_ai ? '<i class="bi bi-robot"></i> AI生成内容' : msg.message}
-                        ${msg.delete_after_send ? '<span class="ml-2 text-amber-600"><i class="bi bi-trash"></i> 发送后删除</span>' : ''}
-                    </div>
-                </div>
-                
-                <div class="message-card-footer">
-                    <div class="message-target flex-1">
-                        <i class="bi bi-send"></i>
-                        <span>目标: ${msg.channel_id || '未设置'}</span>
-                        ${msg.max_executions ? `
-                            <span class="ml-4">
-                                <i class="bi bi-arrow-repeat"></i>
-                                执行: ${msg.execution_count || 0}/${msg.max_executions}
-                            </span>
-                        ` : ''}
-                    </div>
-                    <div class="message-actions">
-                        <button class="btn btn-sm ${msg.active !== false ? 'btn-warning' : 'btn-success'}" onclick="toggleMessageStatus('${msg.job_id || msg.id}'); event.stopPropagation();" title="${msg.active !== false ? '暂停' : '启动'}">
-                            <i class="bi bi-${msg.active !== false ? 'pause' : 'play'}"></i>
-                        </button>
-                        <button class="btn btn-sm btn-info" onclick="viewMessageDetails('${msg.job_id || msg.id}'); event.stopPropagation();" title="查看详情">
-                            <i class="bi bi-eye"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-    }
-    
-    
-    function showAddModal() {
-        editingId = null;
-        document.getElementById('modalTitle').textContent = '添加计划任务';
-        document.getElementById('messageForm').reset();
-        document.getElementById('messageModal').classList.add('show');
-    }
-    
-    function editMessage(id) {
-        const msg = messages.find(m => (m.job_id || m.id) === id);
-        if (!msg) {
-            console.error('未找到指定的计划任务:', id);
-            return;
-        }
-        
-        editingId = id;
-        document.getElementById('modalTitle').textContent = '编辑计划任务';
-        document.getElementById('account-selector').value = msg.account_id || '';
-        
-        if (msg.use_ai) {
-            document.querySelector('input[name="message_type"][value="ai"]').checked = true;
-            document.getElementById('ai-prompt').value = msg.ai_prompt || '';
-        } else {
-            document.querySelector('input[name="message_type"][value="text"]').checked = true;
-            document.getElementById('message-content').value = msg.message;
-        }
-        toggleMessageType();
-        
-        document.getElementById('target-channel').value = msg.channel_id || '';
-        
-        const scheduleMode = msg.schedule_mode || 'cron';
-        document.getElementById('schedule-mode').value = scheduleMode;
-        toggleScheduleMode();
-        
-        if (scheduleMode === 'interval') {
-            const parts = (msg.schedule || '').split(' ');
-            if (parts.length === 2) {
-                document.getElementById('interval-hours').value = parts[0] || '0';
-                document.getElementById('interval-minutes').value = parts[1] || '0';
-            }
-        } else {
-            document.getElementById('cron-expression').value = msg.schedule || '';
-        }
-        
-        document.getElementById('random-delay').value = msg.random_delay || 0;
-        document.getElementById('delete-after-send').checked = msg.delete_after_send || false;
-        document.getElementById('max-executions').value = msg.max_executions || '';
-        
-        document.getElementById('messageModal').classList.add('show');
-    }
-    
-    function closeModal() {
-        document.getElementById('messageModal').classList.remove('show');
-        editingId = null;
-    }
-    
-    function toggleMessageType() {
-        const messageType = document.querySelector('input[name="message_type"]:checked').value;
-        if (messageType === 'text') {
-            setVisible('text-message-group', true);
-            setVisible('ai-prompt-group', false);
-            document.getElementById('message-content').required = true;
-            document.getElementById('ai-prompt').required = false;
-        } else {
-            setVisible('text-message-group', false);
-            setVisible('ai-prompt-group', true);
-            document.getElementById('message-content').required = false;
-            document.getElementById('ai-prompt').required = true;
-        }
-    }
-    
-    async function saveMessage() {
-        const messageType = document.querySelector('input[name="message_type"]:checked').value;
-        const maxExecutionsInput = document.getElementById('max-executions');
-        const maxExecutions = maxExecutionsInput.value ? parseInt(maxExecutionsInput.value) : null;
-        const scheduleMode = document.getElementById('schedule-mode').value;
-        
-        let cronExpression = '';
-        let intervalString = '';
-        
-        if (scheduleMode === 'cron') {
-            cronExpression = document.getElementById('cron-expression').value.trim();
-            if (!cronExpression) {
-                showNotification('请输入Cron表达式', 'error');
-                return;
-            }
-            
-            validateCronExpression();
-            const errorSpan = document.getElementById('cron-validation-error');
-            if (errorSpan && !errorSpan.classList.contains('hidden')) {
-                showNotification('请修正Cron表达式错误', 'error');
-                return;
-            }
-        } else {
-            const hours = parseInt(document.getElementById('interval-hours').value) || 0;
-            const minutes = parseInt(document.getElementById('interval-minutes').value) || 0;
-            
-            if (!validateInterval()) {
-                showNotification('请修正间隔时间错误', 'error');
-                return;
-            }
-            
-            intervalString = `${hours} ${minutes}`;
-        }
-        
-        const formData = {
-            account_id: document.getElementById('account-selector').value,
-            message: messageType === 'text' ? document.getElementById('message-content').value : '',
-            channel_id: document.getElementById('target-channel').value,
-            schedule_mode: scheduleMode,
-            schedule: scheduleMode === 'cron' ? cronExpression : intervalString,
-            use_ai: messageType === 'ai',
-            ai_prompt: messageType === 'ai' ? document.getElementById('ai-prompt').value : '',
-            random_delay: parseInt(document.getElementById('random-delay').value) || 0,
-            delete_after_send: document.getElementById('delete-after-send').checked,
-            max_executions: maxExecutions
-        };
-        
-        console.log('保存计划任务，数据:', formData);
-        
-        try {
-            const url = editingId ? `/api/scheduled-messages/${editingId}` : '/api/scheduled-messages';
-            const method = editingId ? 'PUT' : 'POST';
-            
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(formData)
-            });
-            
-            if (response.ok) {
-                closeModal();
-                showNotification('计划任务保存成功', 'success');
-                await loadMessages();
-            } else {
-                const errorData = await response.json().catch(() => ({}));
-                const errorMsg = errorData.detail || '保存失败，请重试';
-                showNotification(errorMsg, 'error');
-            }
-        } catch (error) {
-            console.error('保存消息失败:', error);
-            showNotification('保存失败：' + error.message, 'error');
-        }
-    }
-    
-    async function deleteMessage(id) {
-        if (!id || id === 'undefined' || id === 'null') {
-            console.error('删除消息: ID无效', id);
-            alert('无效的消息ID，请刷新页面后重试');
-            return;
-        }
-        
-        if (!confirm('确定要删除这条计划任务吗？')) return;
-        
-        try {
-            console.log('删除计划任务，ID:', id);
-            const response = await fetch(`/api/scheduled-messages/${encodeURIComponent(id)}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                await loadMessages();
-                showNotification('计划任务删除成功', 'success');
-            } else {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || '删除失败');
-            }
-        } catch (error) {
-            console.error('删除消息失败:', error);
-            showNotification('删除失败: ' + error.message, 'error');
-        }
-    }
-    
-    
-    function refreshMessages() {
-        loadMessages();
-    }
-    
-    async function toggleMessageStatus(id) {
-        if (!id || id === 'undefined' || id === 'null') {
-            console.error('切换状态: ID无效', id);
-            return;
-        }
-        
-        const msg = messages.find(m => (m.job_id || m.id) === id);
-        if (!msg) {
-            console.error('未找到指定的计划任务:', id);
-            return;
-        }
-        
-        const newStatus = msg.active !== false ? false : true;
-        
-        try {
-            const response = await fetch(`/api/scheduled-messages/${encodeURIComponent(id)}/toggle`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({active: newStatus})
-            });
-            
-            if (response.ok) {
-                msg.active = newStatus;
-                
-                if (newStatus && msg.max_executions && msg.execution_count >= msg.max_executions) {
-                    msg.execution_count = 0;
-                }
-                
-                renderMessages();
-                updateStatistics();
-                
-                await loadMessages();
-                showNotification(`计划任务已${newStatus ? '启动' : '暂停'}`, 'success');
-            } else {
-                throw new Error('状态更新失败');
-            }
-        } catch (error) {
-            console.error('切换消息状态失败:', error);
-            showNotification('状态更新失败: ' + error.message, 'error');
-        }
-    }
-    
-    function viewMessageDetails(id) {
-        const msg = messages.find(m => (m.job_id || m.id) === id);
-        if (!msg) {
-            console.error('未找到指定的计划任务:', id);
-            return;
-        }
-        
-        const row = (label, value, wide = false) => `
-            <div class="config-row ${wide ? 'config-row-wide' : ''}">
-                <span class="config-row-label">${label}</span>
-                <span class="config-row-value">${esc(value)}</span>
-            </div>
-        `;
-        const modal = document.createElement('div');
-        modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
-        
-        modal.innerHTML = `
-            <div class="max-h-[80vh] w-full max-w-2xl overflow-auto rounded bg-white">
-                <div class="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-                    <h3 class="text-lg font-semibold">计划任务详情</h3>
-                    <button onclick="this.parentElement.parentElement.parentElement.remove()" 
-                            class="rounded p-2 text-slate-500 hover:bg-slate-100">
-                        <i class="bi bi-x-lg"></i>
-                    </button>
-                </div>
-                <div class="config-modal-body">
-                    <div class="config-summary">
-                        ${row('消息ID', msg.job_id || msg.id, true)}
-                        ${row('状态', msg.active !== false ? '运行中' : '已暂停')}
-                        ${row('账号', msg.account_id || '未设置')}
-                        ${row('目标', msg.channel_id || '未设置', true)}
-                        ${row('调度表达式', msg.schedule || '未设置', true)}
-                        ${row('消息类型', msg.use_ai ? 'AI生成' : '固定文本')}
-                        ${row('随机延时', `${msg.random_delay || 0} 秒`)}
-                        ${row('发送后删除', msg.delete_after_send ? '是' : '否')}
-                        ${row('最大执行次数', msg.max_executions || '无限制')}
-                        ${row('已执行次数', msg.execution_count || 0)}
-                        ${msg.use_ai ? row('AI提示词', msg.ai_prompt || '无', true) : row('消息内容', msg.message || '无', true)}
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-    }
-</script>
+<script src="/static/js/scheduled-messages.js"></script>
 {% endblock %}

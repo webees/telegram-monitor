@@ -11,6 +11,7 @@ from pathlib import Path
 from datetime import datetime
 import io
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -167,6 +168,42 @@ class WebApp:
         except Exception as e:
             self.logger.error(f"验证登录凭据时发生错误: {e}")
             return False
+
+    @staticmethod
+    def _validate_schedule(schedule_mode: str, schedule_expr: str) -> Optional[tuple[int, int]]:
+        if not schedule_expr:
+            raise HTTPException(status_code=400, detail="定时规则不能为空")
+
+        if schedule_mode != "interval":
+            from core.validator import validate_cron_expression
+            is_valid, error_msg = validate_cron_expression(schedule_expr)
+            if not is_valid:
+                raise HTTPException(status_code=400, detail=f"Cron表达式错误: {error_msg}")
+            return None
+
+        parts = schedule_expr.split()
+        if len(parts) != 2:
+            raise HTTPException(status_code=400, detail="间隔格式错误，应为：小时 分钟")
+
+        try:
+            hours = int(parts[0])
+            minutes = int(parts[1])
+        except ValueError:
+            raise HTTPException(status_code=400, detail="间隔时间必须是整数")
+
+        if hours < 0 or minutes < 0 or minutes > 59:
+            raise HTTPException(status_code=400, detail="间隔时间无效：小时必须>=0，分钟必须在0-59之间")
+        if hours == 0 and minutes == 0:
+            raise HTTPException(status_code=400, detail="间隔时间不能为0")
+        return hours, minutes
+
+    def _build_schedule_trigger(self, schedule_mode: str, schedule_expr: str):
+        interval = self._validate_schedule(schedule_mode, schedule_expr)
+        timezone = pytz.timezone('Asia/Shanghai')
+        if interval:
+            hours, minutes = interval
+            return IntervalTrigger(hours=hours, minutes=minutes, timezone=timezone)
+        return CronTrigger.from_crontab(schedule_expr, timezone=timezone)
     
     def setup_static_files(self):
         static_dir = Path("web/static")
@@ -1304,28 +1341,7 @@ class WebApp:
                 schedule_mode = message.get("schedule_mode", "cron")
                 schedule_expr = message.get("schedule", message.get("cron", ""))
                 
-                if not schedule_expr:
-                    raise HTTPException(status_code=400, detail="定时规则不能为空")
-                
-                if schedule_mode == "interval":
-                    parts = schedule_expr.split()
-                    if len(parts) != 2:
-                        raise HTTPException(status_code=400, detail="间隔格式错误，应为：小时 分钟")
-                    
-                    try:
-                        hours = int(parts[0])
-                        minutes = int(parts[1])
-                        if hours < 0 or minutes < 0 or minutes > 59:
-                            raise HTTPException(status_code=400, detail="间隔时间无效：小时必须>=0，分钟必须在0-59之间")
-                        if hours == 0 and minutes == 0:
-                            raise HTTPException(status_code=400, detail="间隔时间不能为0")
-                    except ValueError:
-                        raise HTTPException(status_code=400, detail="间隔时间必须是整数")
-                else:
-                    from core.validator import validate_cron_expression
-                    is_valid, error_msg = validate_cron_expression(schedule_expr)
-                    if not is_valid:
-                        raise HTTPException(status_code=400, detail=f"Cron表达式错误: {error_msg}")
+                self._validate_schedule(schedule_mode, schedule_expr)
                 
                 if not message.get("account_id"):
                     raise HTTPException(status_code=400, detail="账号ID不能为空")
@@ -1352,7 +1368,8 @@ class WebApp:
                 engine.add_scheduled_message(config)
                 
                 return {"success": True, "job_id": config.job_id}
-                
+            except HTTPException:
+                raise
             except Exception as e:
                 self.logger.error(f"创建计划任务失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
@@ -1435,12 +1452,15 @@ class WebApp:
                         
                         self.logger.info(f"📝 更新计划任务执行次数限制: {max_executions or '无限制'}")
                         
+                        schedule_mode = data.get('schedule_mode', msg.get('schedule_mode', 'cron'))
                         new_cron = data.get('schedule', data.get('cron', old_cron))
+                        self._validate_schedule(schedule_mode, new_cron)
                         engine.scheduled_messages[i].update({
                             'account_id': data.get('account_id'),
                             'message': data.get('message', ''),
                             'channel_id': data.get('channel_id'),
                             'target_id': data.get('channel_id'),
+                            'schedule_mode': schedule_mode,
                             'schedule': new_cron,
                             'cron': new_cron,
                             'use_ai': data.get('use_ai', False),
@@ -1466,14 +1486,15 @@ class WebApp:
                                 
                                 if msg.get('active', True) and new_cron:
                                     try:
+                                        trigger = self._build_schedule_trigger(schedule_mode, new_cron)
                                         engine.scheduler.add_job(
                                             engine._run_scheduled,
-                                            CronTrigger.from_crontab(new_cron, timezone=pytz.timezone('Asia/Shanghai')),
+                                            trigger,
                                             id=job_id,
                                             args=[job_id],
                                             replace_existing=True
                                         )
-                                        self.logger.info(f"更新定时任务: {job_id}, 新Cron: {new_cron}")
+                                        self.logger.info(f"更新定时任务: {job_id}, 新调度规则: {new_cron}")
                                     except Exception as add_error:
                                         self.logger.error(f"重新添加定时任务失败: {add_error}")
                         
@@ -1482,6 +1503,8 @@ class WebApp:
                 
                 return {"success": False, "message": "未找到指定的计划任务"}
                 
+            except HTTPException:
+                raise
             except Exception as e:
                 self.logger.error(f"更新计划任务失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))

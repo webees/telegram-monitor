@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}工作台{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.38/dist/vue.global.prod.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style type="text/tailwindcss">
+        [v-cloak] { display: none; }
         @layer components {
             .nav-link { @apply flex items-center gap-2 rounded px-3 py-2 text-slate-700 hover:bg-slate-100; }
             .nav-link.active, .page-btn.active, .filter-chip.active, .monitor-type-tag.active, .log-filter-btn.active { @apply border-blue-600 bg-blue-600 text-white; }
@@ -284,10 +286,10 @@
                         <h1 class="truncate text-lg font-semibold">{% block page_title %}仪表板{% endblock %}</h1>
                         <p class="hidden truncate text-sm text-slate-500 sm:block">{% block page_subtitle %}概览{% endblock %}</p>
                     </div>
-                    <button class="btn btn-secondary ml-auto" type="button" onclick="loadStats()" title="刷新状态">
+                    <button class="btn btn-secondary ml-auto" type="button" data-action="refresh-status" title="刷新状态">
                         <i class="bi bi-arrow-clockwise"></i><span class="hidden sm:inline">刷新</span>
                     </button>
-                    <button class="btn btn-secondary" type="button" onclick="logout()">
+                    <button class="btn btn-secondary" type="button" data-action="logout">
                         <i class="bi bi-box-arrow-right"></i><span class="hidden sm:inline">退出</span>
                     </button>
                 </div>
@@ -300,79 +302,7 @@
         </main>
     </div>
 
-    <script>
-        const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-        function setVisible(target, visible, mode = 'block') {
-            const el = typeof target === 'string' ? document.getElementById(target) : target;
-            if (!el) return;
-            el.classList.toggle('hidden', !visible);
-            el.classList.remove('grid', 'flex');
-            if (visible && mode === 'grid') el.classList.add('grid');
-            if (visible && mode === 'flex') el.classList.add('flex');
-        }
-
-        function showNotification(message, type = 'info') {
-            const box = document.createElement('div');
-            box.className = `alert alert-${type}`;
-            box.innerHTML = `<div class="flex items-start gap-2"><span class="flex-1">${esc(message)}</span><button type="button" onclick="this.closest('.alert').remove()">x</button></div>`;
-            document.getElementById('notification-area')?.appendChild(box);
-            setTimeout(() => box.remove(), 5000);
-        }
-
-        let currentSystemStatus = '';
-
-        function setSystemStatus(status) {
-            const statusKey = status || 'running';
-            if (statusKey === currentSystemStatus) return;
-            const indicator = document.querySelector('.status-indicator');
-            const text = document.querySelector('.status-text');
-            if (!indicator || !text) return;
-            const map = {
-                running: ['bg-green-500', '系统运行中'],
-                '运行中': ['bg-green-500', '系统运行中'],
-                stopped: ['bg-red-500', '系统已停止'],
-                '已停止': ['bg-red-500', '系统已停止'],
-                partial: ['bg-amber-500', '部分连接'],
-                '部分连接': ['bg-amber-500', '部分连接'],
-                unconfigured: ['bg-slate-400', '未配置'],
-                '未配置': ['bg-slate-400', '未配置'],
-            };
-            const [color, label] = map[statusKey] || map.running;
-            indicator.className = `status-indicator h-2 w-2 rounded-full ${color}`;
-            text.textContent = label;
-            currentSystemStatus = statusKey;
-        }
-
-        function updateSystemStats(stats = {}) {
-            const uptime = document.getElementById('uptime');
-            if (stats.uptime && uptime && uptime.textContent !== stats.uptime) uptime.textContent = stats.uptime;
-            setSystemStatus(stats.status);
-            if (typeof updateDashboardStats === 'function') updateDashboardStats(stats);
-        }
-
-        function loadStats() {
-            fetch('/api/stats').then(r => r.json()).then(updateSystemStats).catch(() => setSystemStatus('partial'));
-        }
-
-        function logout() {
-            if (!confirm('确定要退出登录吗？')) return;
-            fetch('/logout', {method: 'POST'}).finally(() => location.href = '/login');
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('mobileMenuToggle')?.addEventListener('click', () => {
-                document.getElementById('sidebar')?.classList.toggle('-translate-x-full');
-                document.getElementById('sidebarOverlay')?.classList.toggle('hidden');
-            });
-            document.getElementById('sidebarOverlay')?.addEventListener('click', () => {
-                document.getElementById('sidebar')?.classList.add('-translate-x-full');
-                document.getElementById('sidebarOverlay')?.classList.add('hidden');
-            });
-
-            loadStats();
-        });
-    </script>
+    <script src="/static/js/base.js"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
