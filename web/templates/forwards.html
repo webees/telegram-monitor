@@ -18,8 +18,8 @@
             [[ loading ? '加载中' : '刷新' ]]
         </button>
     </div>
-    <div class="table-responsive">
-        <table class="table">
+    <div class="table-responsive inline-block max-w-full align-top">
+        <table class="table table-fit">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -48,7 +48,7 @@
                     <td>[[ row.target_id ]]</td>
                     <td>[[ row.attempts ]]</td>
                     <td>[[ row.updated_at ]]</td>
-                    <td :title="row.last_error">[[ shortError(row.last_error) ]]</td>
+                    <td class="table-error" :title="row.last_error">[[ shortError(row.last_error) ]]</td>
                     <td>
                         <button v-if="row.status === 'failed'" class="btn btn-primary btn-sm" title="重试" @click="retry(row.id)">
                             <i class="bi bi-arrow-clockwise"></i>

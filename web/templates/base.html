@@ -53,6 +53,9 @@
 
             .table-responsive { @apply overflow-x-auto rounded border border-slate-200 bg-white; }
             .table { @apply min-w-full text-sm; }
+            .table-fit { @apply w-auto min-w-max; }
+            .table-fit th, .table-fit td { @apply whitespace-nowrap; }
+            .table-fit .table-error { @apply max-w-xs truncate; }
             .table th { @apply bg-slate-50 px-3 py-2 text-left font-semibold; }
             .table td { @apply border-t border-slate-200 px-3 py-2; }
             .pagination { @apply mt-4 flex flex-wrap items-center gap-2; }
