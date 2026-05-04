@@ -10,8 +10,7 @@
     <style type="text/tailwindcss">
         [v-cloak] { display: none; }
         @layer components {
-            .nav-link { @apply flex items-center gap-2 rounded px-3 py-2 text-slate-700 hover:bg-slate-100; }
-            .nav-link.active, .page-btn.active, .filter-chip.active, .monitor-type-tag.active, .log-filter-btn.active { @apply border-blue-600 bg-blue-600 text-white; }
+            .nav-link { @apply flex items-center gap-2 rounded px-3 py-2 text-slate-700; }
             .data-card, .config-card, .account-card, .channel-card, .stat-card, .stat-item, .wizard-card, .message-card { @apply rounded border border-slate-200 bg-white p-4; }
             .data-card-header { @apply mb-3 flex items-center justify-between border-b border-slate-200 pb-3; }
             .data-card-title { @apply text-base font-semibold; }
@@ -31,26 +30,25 @@
             .progress-bar { @apply h-2 overflow-hidden rounded bg-slate-200; }
             .progress-fill { @apply h-full rounded bg-blue-600; }
             .quick-actions { @apply grid gap-3 sm:grid-cols-2; }
-            .quick-action-btn { @apply flex items-center gap-2 rounded border border-slate-200 bg-white p-3 text-sm hover:bg-slate-50; }
+            .quick-action-btn { @apply flex items-center gap-2 rounded border border-slate-200 bg-white p-3 text-sm; }
             .quick-action-icon { @apply text-blue-600; }
 
-            .btn { @apply inline-flex items-center justify-center gap-2 rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50; }
+            .btn { @apply inline-flex items-center justify-center gap-2 rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700; }
             .btn:disabled, .btn.disabled, .page-btn.disabled { @apply cursor-not-allowed opacity-50; }
-            .btn-primary { @apply border-blue-600 bg-blue-600 text-white hover:bg-blue-700; }
-            .btn-secondary { @apply border-slate-300 bg-white text-slate-700 hover:bg-slate-50; }
-            .btn-success, .btn-outline-success { @apply border-green-600 bg-green-600 text-white hover:bg-green-700; }
-            .btn-danger, .btn-outline-danger { @apply border-red-600 bg-red-600 text-white hover:bg-red-700; }
-            .btn-info { @apply border-sky-600 bg-sky-600 text-white hover:bg-sky-700; }
-            .btn-warning { @apply border-amber-500 bg-amber-500 text-white hover:bg-amber-600; }
-            .btn-outline-primary { @apply border-blue-600 text-blue-700 hover:bg-blue-50; }
+            .btn-primary { @apply border-blue-600 bg-blue-600 text-white; }
+            .btn-success, .btn-outline-success { @apply border-green-600 bg-green-600 text-white; }
+            .btn-danger, .btn-outline-danger { @apply border-red-600 bg-red-600 text-white; }
+            .btn-info { @apply border-sky-600 bg-sky-600 text-white; }
+            .btn-warning { @apply border-amber-500 bg-amber-500 text-white; }
+            .btn-outline-primary { @apply border-blue-600 text-blue-700; }
             .btn-sm { @apply px-2 py-1 text-xs; }
             .btn-icon { @apply p-2; }
             .action-buttons, .logs-actions { @apply flex flex-wrap gap-2; }
-            .action-btn, .account-action-btn { @apply inline-flex items-center justify-center rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50; }
+            .action-btn, .account-action-btn { @apply inline-flex items-center justify-center rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700; }
             .account-action-btn { @apply items-center gap-1; }
-            .action-btn.delete, .action-btn.danger, .account-action-btn.danger, .account-action-btn.delete { @apply border-red-600 text-red-700 hover:bg-red-50; }
-            .action-btn.warning, .account-action-btn.warning { @apply border-amber-500 text-amber-700 hover:bg-amber-50; }
-            .action-btn.success { @apply border-green-600 text-green-700 hover:bg-green-50; }
+            .action-btn.delete, .action-btn.danger, .account-action-btn.danger, .account-action-btn.delete { @apply border-red-600 text-red-700; }
+            .action-btn.warning, .account-action-btn.warning { @apply border-amber-500 text-amber-700; }
+            .action-btn.success { @apply border-green-600 text-green-700; }
 
             .form-group { @apply mb-4; }
             .form-label { @apply mb-1 block text-sm font-medium text-slate-700; }
@@ -69,7 +67,7 @@
             .table th { @apply bg-slate-50 px-3 py-2 text-left font-semibold; }
             .table td { @apply border-t border-slate-200 px-3 py-2; }
             .pagination { @apply mt-4 flex flex-wrap items-center gap-2; }
-            .page-btn { @apply rounded border border-slate-300 bg-white px-3 py-1 text-sm hover:bg-slate-50; }
+            .page-btn { @apply rounded border border-slate-300 bg-white px-3 py-1 text-sm; }
             .page-info { @apply text-sm text-slate-500; }
 
             .account-selector-container { @apply mb-4 rounded border border-slate-200 bg-white p-4; }
@@ -92,7 +90,7 @@
             .account-stat-label { @apply text-xs text-slate-500; }
             .account-actions, .channel-actions { @apply mt-4 flex flex-wrap gap-2; }
             .channel-actions { @apply mt-3; }
-            .add-account-card { @apply cursor-pointer rounded border border-dashed border-slate-300 bg-white p-6 text-center text-slate-600 hover:bg-slate-50; }
+            .add-account-card { @apply cursor-pointer rounded border border-dashed border-slate-300 bg-white p-6 text-center text-slate-600; }
             .add-account-icon { @apply mb-2 text-2xl text-blue-600; }
             .add-account-text { @apply font-medium text-slate-900; }
             .add-account-subtext { @apply text-sm text-slate-500; }
@@ -100,14 +98,14 @@
             .channel-avatar { @apply font-semibold; }
             .channel-description { @apply mt-2 text-sm text-slate-600; }
             .channel-meta { @apply mt-3 border-t border-slate-200 pt-3 text-xs text-slate-500; }
-            .copy-btn { @apply rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50; }
+            .copy-btn { @apply rounded border border-slate-300 px-2 py-1 text-xs; }
 
             .filter-bar { @apply mb-4 space-y-3; }
             .search-box { @apply relative; }
             .search-input { @apply w-full rounded border border-slate-300 bg-white px-3 py-2 pr-9 text-sm focus:border-blue-500 focus:outline-none; }
             .search-icon { @apply absolute right-3 top-1/2 -translate-y-1/2 text-slate-400; }
             .filter-chips, .monitor-types { @apply mb-4 flex flex-wrap gap-2; }
-            .filter-chip, .monitor-type-tag { @apply rounded border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50; }
+            .filter-chip, .monitor-type-tag { @apply rounded border border-slate-300 px-3 py-1 text-sm text-slate-700; }
             .monitor-type-badge { @apply inline-flex rounded bg-slate-100 px-2 py-1 text-xs; }
             .monitors-container { @apply rounded border border-slate-200 bg-white; }
             .monitors-table { @apply overflow-x-auto; }
@@ -124,7 +122,7 @@
             .log-count { @apply flex items-center gap-1; }
             .log-count-badge { @apply rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-700; }
             .loading-indicator { @apply items-center gap-2 text-sm text-slate-500; }
-            .log-filter-btn { @apply rounded border border-slate-300 px-3 py-1 text-sm hover:bg-slate-50; }
+            .log-filter-btn { @apply rounded border border-slate-300 px-3 py-1 text-sm; }
             .log-entry { @apply border-b border-slate-800 py-2; }
             .log-header { @apply mb-1 flex flex-wrap gap-2 text-slate-400; }
             .log-time, .log-source { @apply text-slate-500; }
@@ -146,14 +144,14 @@
             .modal-content { @apply max-h-[90vh] w-full max-w-xl overflow-auto rounded bg-white p-4; }
             .modal-header { @apply mb-3 flex items-center justify-between border-b border-slate-200 pb-3; }
             .modal-title { @apply text-lg font-semibold; }
-            .modal-close { @apply rounded p-2 hover:bg-slate-100; }
+            .modal-close { @apply rounded p-2; }
             .modal-body { @apply space-y-3; }
             .modal-footer { @apply mt-4 flex justify-end gap-2 border-t border-slate-200 pt-3; }
             .config-modal-overlay { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
             .config-modal-content { @apply max-h-[90vh] w-full max-w-2xl overflow-auto rounded bg-white; }
             .config-modal-header { @apply sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3; }
             .config-modal-body { @apply space-y-4 p-4; }
-            .config-modal-close { @apply rounded p-2 hover:bg-slate-100; }
+            .config-modal-close { @apply rounded p-2; }
             .config-summary { @apply grid gap-2 sm:grid-cols-2; }
             .config-row { @apply rounded border border-slate-200 bg-slate-50 p-3; }
             .config-row-wide { @apply sm:col-span-2; }
@@ -203,7 +201,7 @@
             .wizard-content-description { @apply text-sm text-slate-500; }
             .step-content { @apply space-y-4; }
             .monitor-type-grid { @apply grid gap-3 sm:grid-cols-2 lg:grid-cols-3; }
-            .monitor-type-card { @apply cursor-pointer rounded border border-slate-200 bg-white p-4 hover:bg-slate-50; }
+            .monitor-type-card { @apply cursor-pointer rounded border border-slate-200 bg-white p-4; }
             .monitor-type-icon { @apply mb-2 text-xl text-blue-600; }
             .monitor-type-name, .form-radio-title, .form-checkbox-title { @apply font-medium; }
             .monitor-type-desc, .form-radio-description, .form-checkbox-description { @apply mt-1 text-sm text-slate-500; }
@@ -222,10 +220,12 @@
             .completion-title { @apply text-lg font-semibold text-slate-900; }
             .completion-message { @apply mt-1 text-sm text-slate-600; }
             .action-cards { @apply grid gap-3 md:grid-cols-3; }
-            .action-card { @apply flex w-full items-start gap-3 rounded border border-slate-200 bg-white p-4 text-left hover:bg-slate-50; }
+            .action-card { @apply flex w-full items-start gap-3 rounded border border-slate-200 bg-white p-4 text-left; }
             .action-card-icon { @apply flex h-9 w-9 shrink-0 items-center justify-center rounded bg-blue-50 text-lg text-blue-600; }
             .action-card-title { @apply font-medium leading-5; }
             .action-card-description { @apply mt-1 text-sm leading-5 text-slate-500; }
+            .nav-link.active { @apply bg-blue-600 text-white; }
+            .page-btn.active, .filter-chip.active, .monitor-type-tag.active, .log-filter-btn.active { @apply border-blue-600 bg-blue-50 text-blue-700; }
         }
     </style>
 </head>
