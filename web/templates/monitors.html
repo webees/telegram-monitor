@@ -96,7 +96,7 @@
                         <td>
                             <div class="action-buttons">
                                 <button class="action-btn" :title="toggleTitle(monitor)" @click="toggleStatus(monitor)">
-                                    [[ toggleTitle(monitor) ]]
+                                    <i :class="isActive(monitor) ? 'bi bi-pause' : 'bi bi-play'"></i>
                                 </button>
                                 <button class="action-btn view" title="查看配置" @click="viewConfig(monitor)">
                                     <i class="bi bi-eye"></i>

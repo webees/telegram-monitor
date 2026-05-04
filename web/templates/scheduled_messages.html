@@ -64,8 +64,8 @@
                 目标: [[ msg.channel_id || msg.target_id || '未设置' ]]
             </div>
             <div class="message-actions">
-                <button class="btn btn-sm" @click="toggleStatus(msg)">
-                    [[ msg.active !== false ? '暂停' : '启动' ]]
+                <button class="btn btn-sm" :title="msg.active !== false ? '暂停' : '启动'" @click="toggleStatus(msg)">
+                    <i :class="msg.active !== false ? 'bi bi-pause' : 'bi bi-play'"></i>
                 </button>
                 <button class="btn btn-sm btn-info" @click="selectedMessage = msg"><i class="bi bi-eye"></i></button>
                 <button class="btn btn-sm" @click="openModal(msg)"><i class="bi bi-pencil"></i></button>

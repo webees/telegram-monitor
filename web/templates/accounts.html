@@ -54,20 +54,17 @@
                 </div>
             </div>
             <div class="account-actions">
-                <button v-if="account.is_valid" class="account-action-btn" @click="toggleAccount(account.account_id)">
-                    [[ account.monitor_active ? '停止' : '启动' ]]
+                <button v-if="account.is_valid" class="account-action-btn" :title="account.monitor_active ? '停止' : '启动'" @click="toggleAccount(account.account_id)">
+                    <i :class="account.monitor_active ? 'bi bi-pause' : 'bi bi-play'"></i>
                 </button>
-                <button v-if="account.is_valid" class="account-action-btn" @click="goMonitors(account.account_id)">
+                <button v-if="account.is_valid" class="account-action-btn" title="查看" @click="goMonitors(account.account_id)">
                     <i class="bi bi-eye"></i>
-                    查看
                 </button>
-                <button v-else class="account-action-btn warning" @click="reloginAccount(account.phone)">
+                <button v-else class="account-action-btn warning" title="重新登录" @click="reloginAccount(account.phone)">
                     <i class="bi bi-exclamation-triangle"></i>
-                    重新登录
                 </button>
-                <button class="account-action-btn danger" @click="deleteAccount(account.account_id, account.phone)">
+                <button class="account-action-btn danger" title="删除" @click="deleteAccount(account.account_id, account.phone)">
                     <i class="bi bi-trash"></i>
-                    删除
                 </button>
             </div>
         </div>
@@ -163,8 +160,8 @@
                         <label class="form-label">两步验证密码</label>
                         <div class="relative">
                             <input v-model="password" :type="showPassword ? 'text' : 'password'" class="form-input pr-12" required>
-                            <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" @click="showPassword = !showPassword">
-                                [[ showPassword ? '隐藏' : '显示' ]]
+                            <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" :title="showPassword ? '隐藏' : '显示'" @click="showPassword = !showPassword">
+                                <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
                             </button>
                         </div>
                     </div>

@@ -50,8 +50,8 @@
                     <td>[[ row.updated_at ]]</td>
                     <td :title="row.last_error">[[ shortError(row.last_error) ]]</td>
                     <td>
-                        <button v-if="row.status === 'failed'" class="btn btn-primary btn-sm" @click="retry(row.id)">
-                            重试
+                        <button v-if="row.status === 'failed'" class="btn btn-primary btn-sm" title="重试" @click="retry(row.id)">
+                            <i class="bi bi-arrow-clockwise"></i>
                         </button>
                     </td>
                 </tr>
