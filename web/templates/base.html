@@ -289,33 +289,52 @@
             'help-examples': 'mt-2 rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600',
         };
 
+        const stateClasses = {
+            active: 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700',
+            selected: 'border-blue-600 bg-blue-50 text-blue-700',
+            danger: 'border-red-600 text-red-700 hover:bg-red-50',
+            warning: 'border-amber-500 text-amber-700 hover:bg-amber-50',
+            success: 'border-green-600 text-green-700 hover:bg-green-50',
+            logError: 'bg-red-900 text-red-100',
+            logWarning: 'bg-amber-900 text-amber-100',
+            logInfo: 'bg-sky-900 text-sky-100',
+        };
+
         function addClasses(el, classes) {
             if (!classes) return;
             el.classList.add(...classes.split(/\s+/).filter(Boolean));
+        }
+
+        function syncModal(el) {
+            if (!el?.matches?.('.modal')) return;
+            el.classList.toggle('hidden', !el.classList.contains('show'));
+            el.classList.toggle('flex', el.classList.contains('show'));
+        }
+
+        function syncStateClasses(el) {
+            if (!el?.matches) return;
+            if (el.matches('.nav-link.active,.page-btn.active,.filter-chip.active,.monitor-type-tag.active,.log-filter-btn.active')) {
+                addClasses(el, stateClasses.active);
+            }
+            if (el.matches('.wizard-step.active,.wizard-step.completed,.monitor-type-card.selected,.monitor-type-card.active')) {
+                addClasses(el, stateClasses.selected);
+            }
+            if (el.matches('.action-btn.delete,.action-btn.danger,.account-action-btn.danger,.account-action-btn.delete')) {
+                addClasses(el, stateClasses.danger);
+            }
+            if (el.matches('.action-btn.warning,.account-action-btn.warning')) addClasses(el, stateClasses.warning);
+            if (el.matches('.action-btn.success')) addClasses(el, stateClasses.success);
+            if (el.matches('.log-badge.error,.log-badge.ERROR')) addClasses(el, stateClasses.logError);
+            if (el.matches('.log-badge.warning,.log-badge.WARNING')) addClasses(el, stateClasses.logWarning);
+            if (el.matches('.log-badge.info,.log-badge.INFO')) addClasses(el, stateClasses.logInfo);
+            syncModal(el);
         }
 
         function applyUiClasses(root = document) {
             const nodes = root.nodeType === 1 ? [root, ...root.querySelectorAll('*')] : root.querySelectorAll('*');
             nodes.forEach(el => {
                 [...el.classList].forEach(name => addClasses(el, uiClassMap[name]));
-                if (el.matches('.nav-link.active,.page-btn.active,.filter-chip.active,.monitor-type-tag.active,.log-filter-btn.active')) {
-                    addClasses(el, 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700');
-                }
-                if (el.matches('.wizard-step.active,.wizard-step.completed,.monitor-type-card.selected,.monitor-type-card.active')) {
-                    addClasses(el, 'border-blue-600 bg-blue-50 text-blue-700');
-                }
-                if (el.matches('.modal')) {
-                    el.classList.toggle('hidden', !el.classList.contains('show'));
-                    el.classList.toggle('flex', el.classList.contains('show'));
-                }
-                if (el.matches('.action-btn.delete,.action-btn.danger')) addClasses(el, 'border-red-600 text-red-700 hover:bg-red-50');
-                if (el.matches('.action-btn.success')) addClasses(el, 'border-green-600 text-green-700 hover:bg-green-50');
-                if (el.matches('.action-btn.warning')) addClasses(el, 'border-amber-500 text-amber-700 hover:bg-amber-50');
-                if (el.matches('.account-action-btn.danger,.account-action-btn.delete')) addClasses(el, 'border-red-600 text-red-700 hover:bg-red-50');
-                if (el.matches('.account-action-btn.warning')) addClasses(el, 'border-amber-500 text-amber-700 hover:bg-amber-50');
-                if (el.matches('.log-badge.error,.log-badge.ERROR')) addClasses(el, 'bg-red-900 text-red-100');
-                if (el.matches('.log-badge.warning,.log-badge.WARNING')) addClasses(el, 'bg-amber-900 text-amber-100');
-                if (el.matches('.log-badge.info,.log-badge.INFO')) addClasses(el, 'bg-sky-900 text-sky-100');
+                syncStateClasses(el);
             });
         }
 
@@ -335,7 +354,6 @@
             box.className = `alert alert-${type}`;
             box.innerHTML = `<div class="flex items-start gap-2"><span class="flex-1">${esc(message)}</span><button type="button" onclick="this.closest('.alert').remove()">x</button></div>`;
             document.getElementById('notification-area')?.appendChild(box);
-            applyUiClasses(box);
             setTimeout(() => box.remove(), 5000);
         }
 
@@ -390,11 +408,21 @@
         document.addEventListener('DOMContentLoaded', () => {
             applyUiClasses();
             new MutationObserver(items => items.forEach(item => {
-                if (item.type === 'attributes') applyUiClasses(item.target);
+                if (item.type === 'attributes') {
+                    syncModal(item.target);
+                    return;
+                }
                 item.addedNodes.forEach(node => {
                     if (node.nodeType === 1) applyUiClasses(node);
                 });
             })).observe(document.body, {childList: true, subtree: true, attributes: true, attributeFilter: ['class']});
+
+            document.addEventListener('click', event => {
+                const modal = event.target.closest?.('.modal');
+                if (modal) queueMicrotask(() => syncModal(modal));
+                const stateTarget = event.target.closest?.('.filter-chip,.monitor-type-tag,.page-btn,.log-filter-btn,.monitor-type-card,.wizard-step');
+                if (stateTarget) queueMicrotask(() => syncStateClasses(stateTarget));
+            });
 
             document.getElementById('mobileMenuToggle')?.addEventListener('click', () => {
                 document.getElementById('sidebar')?.classList.toggle('-translate-x-full');
