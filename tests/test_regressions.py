@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from core.account import AccountManager
 from core.ai import AIService
 from core.config import Config, config as app_config
+from core.engine import MonitorEngine
 from core.forward import EnhancedForwardService
 from core.forward_store import ForwardStore
 from core.model import (
@@ -228,6 +229,18 @@ def test_copy_message_without_source_preserves_album_as_single_send_file_call():
     assert client.sent_files == [(99, ["photo-1", "photo-2"], ["caption", ""])]
 
 
+def test_copy_message_without_source_deduplicates_album_messages():
+    service = EnhancedForwardService()
+    first = SimpleNamespace(id=10, grouped_id=555, media="photo-1", message="caption")
+    second = SimpleNamespace(id=11, grouped_id=555, media="photo-2", message="")
+    client = FakeClient(first, nearby_messages=[first, second, first])
+
+    ok = asyncio.run(service.copy_message_without_source(client, make_album_message(grouped_id=555), 99))
+
+    assert ok is True
+    assert client.sent_files == [(99, ["photo-1", "photo-2"], ["caption", ""])]
+
+
 def test_grouped_message_unique_id_deduplicates_album_parts():
     first = MessageEvent(account_id="acc", message=make_album_message(grouped_id=555))
     second = MessageEvent(account_id="acc", message=make_album_message(grouped_id=555))
@@ -274,6 +287,29 @@ def test_copy_message_without_source_blocks_original_when_rewrite_fails(monkeypa
     assert "已阻止原文转发" in service.last_error
 
 
+def test_string_false_rewrite_option_does_not_trigger_ai(monkeypatch):
+    class FakeAIService:
+        async def rewrite_forward_text(self, text, append_template="", custom_prompt=""):
+            raise AssertionError("AI should not be called")
+
+    import core.ai
+
+    monkeypatch.setattr(core.ai, "AIService", FakeAIService)
+    service = EnhancedForwardService()
+    original = SimpleNamespace(media=None)
+    client = FakeClient(original)
+
+    ok = asyncio.run(service.copy_message_without_source(
+        client,
+        make_message(MessageSender(1)),
+        99,
+        {"enabled": "false", "template": "{topic}", "prompt": ""}
+    ))
+
+    assert ok is True
+    assert client.sent == [(99, original)]
+
+
 def test_enhanced_forward_does_not_fallback_to_original_when_rewrite_fails(monkeypatch):
     class FakeAIService:
         async def rewrite_forward_text(self, text, append_template="", custom_prompt=""):
@@ -294,6 +330,7 @@ def test_enhanced_forward_does_not_fallback_to_original_when_rewrite_fails(monke
     assert result == {99: False}
     assert client.sent == []
     assert client.sent_files == []
+    assert "已阻止原文转发" in service.last_error
 
 
 def test_album_rewrite_updates_first_caption_only(monkeypatch):
@@ -467,6 +504,117 @@ def test_forward_store_marks_result_and_restores_message(tmp_path):
     assert restored.message_id == message.message_id
     assert restored.grouped_id == 555
     assert store.rewrite_options(record) == {"enabled": True}
+
+
+def test_forward_store_ignores_invalid_rewrite_options_json(tmp_path):
+    import sqlite3
+
+    store = ForwardStore(tmp_path / "forward.db")
+    record_id = store.add("acc", make_message(MessageSender(1)), 99, False, {"enabled": True})
+    with sqlite3.connect(store.db_path) as conn:
+        conn.execute("UPDATE forward_records SET rewrite_options = ? WHERE id = ?", ("{bad json", record_id))
+
+    assert store.rewrite_options(store.get(record_id)) == {}
+
+
+def test_merge_actions_keep_highest_priority_rewrite_template():
+    MonitorEngine.clear_instance()
+    engine = MonitorEngine()
+    actions = {
+        "forward_targets": set(),
+        "enhanced_forward": False,
+        "forward_rewrite": {},
+        "forward_rewrite_by_target": {},
+        "email_notify": False,
+        "log_files": set(),
+        "reply_enabled": False,
+        "reply_texts": [],
+        "reply_delay_min": 0,
+        "reply_delay_max": 0,
+        "reply_mode": "reply",
+        "reply_content_type": "custom",
+        "ai_reply_prompt": "",
+        "custom_actions": []
+    }
+    high = DummyMonitor(BaseMonitorConfig(
+        auto_forward=True,
+        forward_targets=[1],
+        forward_rewrite_enabled=True,
+        forward_rewrite_template="高优先级{topic}"
+    ))
+    low = DummyMonitor(BaseMonitorConfig(
+        auto_forward=True,
+        forward_targets=[2],
+        forward_rewrite_enabled=True,
+        forward_rewrite_template="低优先级{topic}"
+    ))
+
+    engine._merge_monitor_actions(high, "high", actions)
+    engine._merge_monitor_actions(low, "low", actions)
+
+    assert actions["forward_targets"] == {1, 2}
+    assert actions["forward_rewrite"]["template"] == "高优先级{topic}"
+    assert actions["forward_rewrite_by_target"][1]["template"] == "高优先级{topic}"
+    assert actions["forward_rewrite_by_target"][2]["template"] == "低优先级{topic}"
+    MonitorEngine.clear_instance()
+
+
+def test_merge_actions_keep_rewrite_options_per_target():
+    MonitorEngine.clear_instance()
+    engine = MonitorEngine()
+    actions = {
+        "forward_targets": set(),
+        "enhanced_forward": False,
+        "forward_rewrite": {},
+        "forward_rewrite_by_target": {},
+        "email_notify": False,
+        "log_files": set(),
+        "reply_enabled": False,
+        "reply_texts": [],
+        "reply_delay_min": 0,
+        "reply_delay_max": 0,
+        "reply_mode": "reply",
+        "reply_content_type": "custom",
+        "ai_reply_prompt": "",
+        "custom_actions": []
+    }
+    with_rewrite = DummyMonitor(BaseMonitorConfig(
+        auto_forward=True,
+        forward_targets=[1],
+        forward_rewrite_enabled=True,
+        forward_rewrite_template="模板{topic}"
+    ))
+    without_rewrite = DummyMonitor(BaseMonitorConfig(
+        auto_forward=True,
+        forward_targets=[2],
+        forward_rewrite_enabled=False
+    ))
+
+    engine._merge_monitor_actions(with_rewrite, "with_rewrite", actions)
+    engine._merge_monitor_actions(without_rewrite, "without_rewrite", actions)
+
+    assert actions["forward_rewrite_by_target"][1]["template"] == "模板{topic}"
+    assert actions["forward_rewrite_by_target"][2] == {}
+    MonitorEngine.clear_instance()
+
+
+def test_engine_does_not_forward_when_auto_forward_is_string_false():
+    MonitorEngine.clear_instance()
+    engine = MonitorEngine()
+    monitor = DummyMonitor(BaseMonitorConfig(
+        auto_forward="false",
+        forward_targets=[99],
+        enhanced_forward="true",
+        forward_rewrite_enabled="true"
+    ))
+
+    actions = engine._collect_actions(monitor, "dummy")
+
+    assert actions["forward_targets"] == set()
+    assert actions["enhanced_forward"] is False
+    assert actions["forward_rewrite"] == {}
+    assert actions["forward_rewrite_by_target"] == {}
+    MonitorEngine.clear_instance()
 
 
 def test_web_schedule_validation_accepts_cron_and_interval():

@@ -16,7 +16,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from .model import MessageEvent, TelegramMessage, MessageSender, Account
+from .model import MessageEvent, TelegramMessage, MessageSender, Account, is_enabled
 from monitor import BaseMonitor, MonitorResult, monitor_factory
 from .singleton import Singleton
 from .log import get_logger
@@ -414,6 +414,7 @@ class MonitorEngine(metaclass=Singleton):
             'forward_targets': set(),
             'enhanced_forward': False,
             'forward_rewrite': {},
+            'forward_rewrite_by_target': {},
             'log_files': set(),
             'reply_enabled': False,
             'reply_texts': [],
@@ -479,11 +480,16 @@ class MonitorEngine(metaclass=Singleton):
         if config.email_notify:
             all_actions['email_notify'] = True
 
-        if config.auto_forward and config.forward_targets:
+        if is_enabled(config.auto_forward) and config.forward_targets:
             all_actions['forward_targets'].update(config.forward_targets)
-            if config.enhanced_forward:
+            if is_enabled(config.enhanced_forward):
                 all_actions['enhanced_forward'] = True
-            all_actions['forward_rewrite'] = config.forward_rewrite_options() or all_actions['forward_rewrite']
+            rewrite_options = config.forward_rewrite_options()
+            rewrite_by_target = all_actions.setdefault('forward_rewrite_by_target', {})
+            for target_id in config.forward_targets:
+                rewrite_by_target.setdefault(target_id, rewrite_options)
+            if rewrite_options and not all_actions['forward_rewrite']:
+                all_actions['forward_rewrite'] = rewrite_options
 
         if config.log_file:
             all_actions['log_files'].add(config.log_file)
@@ -523,11 +529,17 @@ class MonitorEngine(metaclass=Singleton):
 
     def _collect_actions(self, monitor, monitor_key: str) -> dict:
         config = monitor.config
+        auto_forward = is_enabled(config.auto_forward)
+        rewrite_options = config.forward_rewrite_options()
         actions = {
             'email_notify': config.email_notify,
-            'forward_targets': set(config.forward_targets) if config.auto_forward else set(),
-            'enhanced_forward': config.enhanced_forward if config.auto_forward else False,
-            'forward_rewrite': config.forward_rewrite_options(),
+            'forward_targets': set(config.forward_targets) if auto_forward else set(),
+            'enhanced_forward': is_enabled(config.enhanced_forward) if auto_forward else False,
+            'forward_rewrite': rewrite_options,
+            'forward_rewrite_by_target': {
+                target_id: rewrite_options
+                for target_id in config.forward_targets
+            } if auto_forward else {},
             'log_files': {config.log_file} if config.log_file else set(),
             'reply_enabled': False,
             'reply_texts': [],
@@ -596,9 +608,14 @@ class MonitorEngine(metaclass=Singleton):
                     client = account.client
                     service = EnhancedForwardService()
                     store = ForwardStore()
-                    rewrite_options = actions.get('forward_rewrite')
+                    rewrite_by_target = actions.get('forward_rewrite_by_target') or {}
 
                     for target_id in target_ids:
+                        rewrite_options = (
+                            rewrite_by_target[target_id]
+                            if target_id in rewrite_by_target
+                            else actions.get('forward_rewrite')
+                        )
                         record_id = store.add(
                             account.account_id,
                             message,

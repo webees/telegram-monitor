@@ -131,7 +131,11 @@ class ForwardStore:
 
     @staticmethod
     def rewrite_options(record: Dict[str, Any]) -> Dict[str, Any]:
-        return json.loads(record.get("rewrite_options") or "{}")
+        try:
+            options = json.loads(record.get("rewrite_options") or "{}")
+            return options if isinstance(options, dict) else {}
+        except (TypeError, json.JSONDecodeError):
+            return {}
 
     @staticmethod
     def _now() -> str:

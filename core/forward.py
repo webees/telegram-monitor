@@ -11,7 +11,7 @@ from typing import Optional, List, Dict, Any
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError, ChatForwardsRestrictedError, MediaEmptyError
 
-from .model import TelegramMessage, Account
+from .model import TelegramMessage, Account, is_enabled
 from .singleton import Singleton
 from .log import get_logger
 
@@ -56,6 +56,10 @@ class EnhancedForwardService(metaclass=Singleton):
                 )
                 results[target_id] = success
                 
+            except RewriteUnavailable as e:
+                self.last_error = f"智能改写失败，已阻止原文转发: {e}"
+                self.logger.error(f"转发到 {target_id} 时阻止原文转发: {e}")
+                results[target_id] = False
             except Exception as e:
                 self.last_error = str(e)
                 self.logger.error(f"转发到 {target_id} 时出错: {e}")
@@ -134,16 +138,12 @@ class EnhancedForwardService(metaclass=Singleton):
         except TypeError:
             nearby_messages = await client.get_messages(message.chat_id, limit=self.ALBUM_LOOKUP_WINDOW * 2)
 
-        nearby_messages = nearby_messages or []
-        album_messages = [
-            item for item in nearby_messages
-            if getattr(item, 'grouped_id', None) == grouped_id and getattr(item, 'media', None)
-        ]
+        by_id = {}
+        for item in [*(nearby_messages or []), original_message]:
+            if getattr(item, 'grouped_id', None) == grouped_id and getattr(item, 'media', None):
+                by_id[getattr(item, 'id', id(item))] = item
 
-        if not album_messages and getattr(original_message, 'media', None):
-            album_messages = [original_message]
-
-        return sorted(album_messages, key=lambda item: item.id)
+        return sorted(by_id.values(), key=lambda item: getattr(item, 'id', 0))
 
     async def _send_album_without_source(
         self,
@@ -166,7 +166,7 @@ class EnhancedForwardService(metaclass=Singleton):
 
     async def _rewrite_text_if_enabled(self, text: str, rewrite_options: Optional[Dict[str, str]] = None) -> Optional[str]:
         rewrite_options = rewrite_options or {}
-        if not rewrite_options.get("enabled") or not text or not text.strip():
+        if not is_enabled(rewrite_options.get("enabled")) or not text or not text.strip():
             return None
 
         try:
@@ -231,6 +231,10 @@ class EnhancedForwardService(metaclass=Singleton):
             
             if not original_message or not original_message.media:
                 return False
+
+            caption = await self._rewrite_text_if_enabled(message.text, rewrite_options)
+            if caption is None:
+                caption = message.text or None
             
             file_name = message.media.file_name or f"file_{message.message_id}"
             file_path = download_path / file_name
@@ -242,14 +246,15 @@ class EnhancedForwardService(metaclass=Singleton):
                 self.logger.error("文件下载失败")
                 return False
             
-            caption = await self._rewrite_text_if_enabled(message.text, rewrite_options)
-            if caption is None:
-                caption = message.text or None
             await client.send_file(target_id, downloaded_path, caption=caption)
             
             self.logger.info(f"文件重发成功到 {target_id}: {file_name}")
             return True
             
+        except RewriteUnavailable as e:
+            self.last_error = f"智能改写失败，已阻止原文转发: {e}"
+            self.logger.error(f"下载媒体文件前智能改写失败: {e}")
+            return False
         except Exception as e:
             self.last_error = str(e)
             self.logger.error(f"下载媒体文件失败: {e}")
@@ -275,6 +280,10 @@ class EnhancedForwardService(metaclass=Singleton):
                 return True
             return False
             
+        except RewriteUnavailable as e:
+            self.last_error = f"智能改写失败，已阻止原文转发: {e}"
+            self.logger.error(f"发送文本前智能改写失败: {e}")
+            return False
         except Exception as e:
             self.last_error = str(e)
             self.logger.error(f"发送文本消息失败: {e}")
