@@ -5,589 +5,10 @@
 {% block page_title %}监控器管理{% endblock %}
 {% block page_subtitle %}配置和管理您的消息监控规则{% endblock %}
 
-{% block extra_css %}
-<style>
-    .monitors-container {
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
-    }
-    
-    .monitor-types {
-        display: flex;
-        gap: 12px;
-        padding: 16px;
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        overflow-x: auto;
-    }
-    
-    .monitor-type-tag {
-        padding: 8px 16px;
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-full);
-        color: var(--text-secondary);
-        font-size: 14px;
-        cursor: pointer;
-        transition: all var(--transition-base);
-        white-space: nowrap;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .monitor-type-tag:hover {
-        background: var(--bg-hover);
-        color: var(--text-primary);
-    }
-    
-    .monitor-type-tag.active {
-        background: var(--primary-gradient);
-        color: white;
-        border-color: transparent;
-    }
-    
-    .monitor-type-count {
-        background: rgba(255, 255, 255, 0.2);
-        padding: 2px 6px;
-        border-radius: var(--radius-full);
-        font-size: 12px;
-        font-weight: 600;
-    }
-    
-    .monitors-table {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    .table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 800px;
-    }
-    
-    .table thead {
-        background: var(--bg-tertiary);
-        border-bottom: 1px solid var(--border-color);
-    }
-    
-    .table th {
-        padding: 16px 20px;
-        text-align: left;
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .table tbody tr {
-        border-bottom: 1px solid var(--border-color);
-        transition: all var(--transition-base);
-    }
-    
-    .table tbody tr:last-child {
-        border-bottom: none;
-    }
-    
-    .table tbody tr:hover {
-        background: var(--bg-hover);
-    }
-    
-    .table td {
-        padding: 16px 20px;
-        font-size: 14px;
-        color: var(--text-primary);
-    }
-    
-    .monitor-type-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 10px;
-        background: rgba(91, 95, 222, 0.1);
-        border-radius: var(--radius-full);
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--primary-color);
-        white-space: nowrap;
-    }
-    
-    .monitor-type-badge.keyword {
-        background: rgba(16, 185, 129, 0.1);
-        color: var(--success-color);
-    }
-    
-    .monitor-type-badge.file {
-        background: rgba(245, 158, 11, 0.1);
-        color: var(--warning-color);
-    }
-    
-    .monitor-type-badge.ai {
-        background: rgba(139, 92, 246, 0.1);
-        color: #8B5CF6;
-    }
-    
-    .monitor-type-badge.button {
-        background: rgba(236, 72, 153, 0.1);
-        color: #ec4899;
-    }
-    
-    .monitor-type-badge.imagebutton {
-        background: rgba(168, 85, 247, 0.1);
-        color: #a855f7;
-    }
-    
-    .monitor-type-badge.all {
-        background: rgba(59, 130, 246, 0.1);
-        color: var(--info-color);
-    }
-    
-    .switch {
-        position: relative;
-        width: 44px;
-        height: 24px;
-        background: var(--bg-tertiary);
-        border-radius: var(--radius-full);
-        cursor: pointer;
-        transition: all var(--transition-base);
-    }
-    
-    .switch.active {
-        background: var(--success-gradient);
-    }
-    
-    .switch-handle {
-        position: absolute;
-        top: 2px;
-        left: 2px;
-        width: 20px;
-        height: 20px;
-        background: white;
-        border-radius: var(--radius-full);
-        transition: all var(--transition-base);
-        box-shadow: var(--shadow-sm);
-    }
-    
-    .switch.active .switch-handle {
-        transform: translateX(20px);
-    }
-    
-    .action-buttons {
-        display: flex;
-        gap: 8px;
-    }
-    
-    .action-btn {
-        width: 32px;
-        height: 32px;
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all var(--transition-base);
-        color: var(--text-secondary);
-    }
-    
-    .action-btn:hover {
-        background: var(--bg-hover);
-        color: var(--text-primary);
-        border-color: var(--primary-color);
-    }
-    
-    .action-btn.edit:hover {
-        color: var(--primary-color);
-    }
-    
-    .action-btn.delete:hover {
-        color: var(--danger-color);
-        border-color: var(--danger-color);
-        background: rgba(239, 68, 68, 0.1);
-    }
-    
-    .monitor-detail-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        padding: 24px;
-        margin-bottom: 16px;
-        transition: all var(--transition-base);
-    }
-    
-    .monitor-detail-card:hover {
-        border-color: var(--primary-color);
-        box-shadow: var(--shadow-md);
-    }
-    
-    .monitor-detail-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 20px;
-    }
-    
-    .monitor-detail-title {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-    
-    .monitor-detail-name {
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--text-primary);
-    }
-    
-    .monitor-detail-body {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 16px;
-    }
-    
-    .monitor-detail-item {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-    
-    .monitor-detail-label {
-        font-size: 12px;
-        color: var(--text-muted);
-    }
-    
-    .monitor-detail-value {
-        font-size: 14px;
-        color: var(--text-primary);
-        font-weight: 500;
-    }
-    
-    .pagination {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        margin-top: 24px;
-    }
-    
-    .page-btn {
-        padding: 8px 12px;
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        color: var(--text-secondary);
-        cursor: pointer;
-        transition: all var(--transition-base);
-        font-size: 14px;
-    }
-    
-    .page-btn:hover:not(:disabled) {
-        background: var(--bg-hover);
-        color: var(--text-primary);
-        border-color: var(--primary-color);
-    }
-    
-    .page-btn.active {
-        background: var(--primary-gradient);
-        color: white;
-        border-color: transparent;
-    }
-    
-    .page-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-    
-    .empty-monitors {
-        text-align: center;
-        padding: 60px;
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-    }
-    
-    .empty-icon {
-        width: 80px;
-        height: 80px;
-        margin: 0 auto 20px;
-        background: rgba(91, 95, 222, 0.1);
-        border-radius: var(--radius-full);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 36px;
-        color: var(--primary-color);
-    }
-    
-    .empty-title {
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 8px;
-    }
-    
-    .empty-text {
-        font-size: 14px;
-        color: var(--text-secondary);
-        margin-bottom: 24px;
-    }
-    
-    .account-selector-wrapper {
-        position: relative;
-        flex: 1;
-        min-width: 200px;
-        max-width: 400px;
-    }
-
-    .account-selector-label {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 13px;
-        color: var(--text-secondary);
-        margin-bottom: 8px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .account-selector-label i {
-        color: var(--primary-color);
-    }
-
-    #account-selector {
-        width: 100%;
-        height: 44px;
-        padding: 0 16px;
-        font-size: 14px;
-        font-weight: 500;
-        background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-tertiary) 100%);
-        border: 2px solid var(--border-color);
-        border-radius: var(--radius-md);
-        color: var(--text-primary);
-        cursor: pointer;
-        transition: all 0.3s ease;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%235B5FDE' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 12px center;
-        padding-right: 40px;
-    }
-
-    #account-selector:hover {
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(91, 95, 222, 0.1);
-    }
-
-    #account-selector:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 4px rgba(91, 95, 222, 0.15);
-    }
-    
-    .config-modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-        padding: 20px;
-        overflow-y: auto;
-    }
-
-    .config-modal-content {
-        background: var(--bg-secondary);
-        border-radius: var(--radius-lg);
-        width: 100%;
-        max-width: 900px;
-        max-height: 90vh;
-        display: flex;
-        flex-direction: column;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        margin: auto;
-    }
-
-    .config-modal-header {
-        padding: 20px 24px;
-        border-bottom: 1px solid var(--border-color);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-shrink: 0;
-        background: var(--bg-secondary);
-        position: sticky;
-        top: 0;
-        z-index: 10;
-    }
-
-    .config-modal-header h5 {
-        margin: 0;
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--text-primary);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .config-modal-close {
-        width: 32px;
-        height: 32px;
-        border-radius: var(--radius-md);
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-color);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.2s;
-        color: var(--text-secondary);
-    }
-
-    .config-modal-close:hover {
-        background: var(--danger-color);
-        border-color: var(--danger-color);
-        color: white;
-    }
-
-    .config-modal-body {
-        padding: 24px;
-        overflow-y: auto;
-        flex: 1;
-    }
-
-    .json-details {
-        margin-top: 24px;
-        border-top: 1px solid var(--border-color);
-        padding-top: 24px;
-    }
-
-    .config-row {
-        display: flex;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 10px 0;
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    .config-row span:first-child {
-        color: var(--text-secondary);
-    }
-
-    .config-row span:last-child {
-        color: var(--text-primary);
-        text-align: right;
-        word-break: break-word;
-    }
-
-    .json-details summary {
-        cursor: pointer;
-        color: var(--primary-color);
-        font-weight: 600;
-        padding: 12px;
-        background: var(--bg-tertiary);
-        border-radius: var(--radius-md);
-        transition: all 0.2s;
-        user-select: none;
-    }
-
-    .json-details summary:hover {
-        background: var(--bg-hover);
-    }
-
-    .json-details pre {
-        background: var(--bg-tertiary);
-        padding: 16px;
-        border-radius: var(--radius-md);
-        font-size: 12px;
-        margin-top: 12px;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        overflow-x: auto;
-        max-height: 400px;
-        overflow-y: auto;
-        line-height: 1.5;
-    }
-    
-    @media (max-width: 768px) {
-        .config-modal-content {
-            max-height: 95vh;
-        }
-        
-        .config-modal-body {
-            padding: 16px;
-        }
-        
-        .monitors-table {
-            scrollbar-width: thin;
-            scrollbar-color: rgba(91, 95, 222, 0.3) transparent;
-        }
-        
-        .monitors-table::-webkit-scrollbar {
-            height: 6px;
-        }
-        
-        .monitors-table::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.1);
-            border-radius: 3px;
-        }
-        
-        .monitors-table::-webkit-scrollbar-thumb {
-            background: rgba(91, 95, 222, 0.5);
-            border-radius: 3px;
-        }
-        
-        .monitors-table::-webkit-scrollbar-thumb:hover {
-            background: rgba(91, 95, 222, 0.7);
-        }
-        
-        .account-selector-wrapper {
-            max-width: 100%;
-        }
-        
-        .pagination {
-            flex-wrap: wrap;
-        }
-        
-        .page-info {
-            width: 100%;
-            text-align: center;
-            margin-top: 8px;
-        }
-    }
-    
-    @media (max-width: 480px) {
-        .config-modal-header {
-            padding: 16px;
-        }
-        
-        .config-modal-header h5 {
-            font-size: 16px;
-        }
-        
-        .json-details pre {
-            font-size: 11px;
-            padding: 12px;
-        }
-    }
-</style>
-{% endblock %}
 
 {% block content %}
-<div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 24px;">
-    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end;">
+<div class="data-card mb-6">
+    <div class="flex flex-wrap items-end gap-5">
         <div class="account-selector-wrapper">
             <label for="account-selector" class="account-selector-label">
                 <i class="bi bi-person-circle"></i>
@@ -598,8 +19,8 @@
             </select>
         </div>
         
-        <div style="display: flex; gap: 10px; margin-left: auto;">
-            <button class="btn btn-primary" onclick="createNewMonitor()" style="height: 44px; padding: 0 20px; font-weight: 600;">
+        <div class="ml-auto flex gap-2">
+            <button class="btn btn-primary" onclick="createNewMonitor()">
                 <i class="bi bi-plus-lg"></i>
                 创建监控器
             </button>
@@ -649,8 +70,8 @@
         <table class="table">
             <thead>
                 <tr>
-                    <th style="width: 40px;">
-                        <input type="checkbox" style="cursor: pointer;">
+                    <th class="w-10">
+                        <input type="checkbox" class="cursor-pointer">
                     </th>
                     <th>监控器名称</th>
                     <th>类型</th>
@@ -658,7 +79,7 @@
                     <th>执行次数</th>
                     <th>优先级</th>
                     <th>创建时间</th>
-                    <th style="width: 120px;">操作</th>
+                    <th class="w-32">操作</th>
                 </tr>
             </thead>
             <tbody>
@@ -800,9 +221,9 @@
         
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
-                    <i class="bi bi-arrow-clockwise" style="animation: spin 1s linear infinite; font-size: 24px;"></i>
-                    <p style="margin-top: 16px;">加载监控器中...</p>
+                <td colspan="8" class="p-10 text-center text-slate-500">
+                    <i class="bi bi-arrow-clockwise text-2xl"></i>
+                    <p class="mt-4">加载监控器中...</p>
                 </td>
             </tr>
         `;
@@ -820,10 +241,10 @@
             console.error('加载监控器失败:', error);
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" style="text-align: center; padding: 40px; color: var(--danger-color);">
-                        <i class="bi bi-exclamation-triangle" style="font-size: 24px;"></i>
-                        <p style="margin-top: 16px;">加载失败: ${error.message}</p>
-                        <button class="btn btn-secondary" onclick="loadMonitors(currentAccount)" style="margin-top: 16px;">重试</button>
+                    <td colspan="8" class="p-10 text-center text-red-600">
+                        <i class="bi bi-exclamation-triangle text-2xl"></i>
+                        <p class="mt-4">加载失败: ${error.message}</p>
+                        <button class="btn btn-secondary mt-4" onclick="loadMonitors(currentAccount)">重试</button>
                     </td>
                 </tr>
             `;
@@ -840,13 +261,13 @@
             
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" style="text-align: center; padding: 60px; color: var(--text-muted);">
-                        <div class="empty-icon" style="margin-bottom: 24px;">
+                    <td colspan="8" class="p-10 text-center text-slate-500">
+                        <div class="empty-icon mb-6">
                             <i class="bi bi-inbox"></i>
                         </div>
-                        <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">${emptyMessage.split('<br>')[0]}</div>
+                        <div class="mb-2 font-semibold text-slate-900">${emptyMessage.split('<br>')[0]}</div>
                         <p class="empty-text">${emptyMessage.split('<br>')[1]}</p>
-                        ${currentFilter === 'all' ? `<button class="btn btn-primary" onclick="createNewMonitor()" style="margin-top: 16px;">
+                        ${currentFilter === 'all' ? `<button class="btn btn-primary mt-4" onclick="createNewMonitor()">
                             <i class="bi bi-plus"></i>
                             创建监控器
                         </button>` : ''}
@@ -872,7 +293,7 @@
                 <tr>
                     <td><input type="checkbox" data-monitor-key="${monitor.key}"></td>
                     <td>
-                        <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="flex items-center gap-2">
                             <i class="${typeIcon}"></i>
                             <span>${getMonitorDisplayName(monitor)}</span>
                         </div>
@@ -951,9 +372,9 @@
         const isLimited = monitor.max_executions && monitor.execution_count >= monitor.max_executions;
         
         if (isLimited) {
-            return '<span style="padding: 4px 10px; background: rgba(245, 158, 11, 0.1); color: var(--warning-color); border-radius: var(--radius-full); font-size: 12px;">已达限制</span>';
+            return '<span class="rounded bg-amber-50 px-2 py-1 text-xs text-amber-700">已达限制</span>';
         } else {
-            return '<span style="padding: 4px 10px; background: rgba(16, 185, 129, 0.1); color: var(--success-color); border-radius: var(--radius-full); font-size: 12px;">活跃</span>';
+            return '<span class="rounded bg-green-50 px-2 py-1 text-xs text-green-700">活跃</span>';
         }
     }
     
@@ -1085,7 +506,7 @@
                 <div class="config-modal-content">
                     <div class="config-modal-header">
                         <h5><i class="bi bi-gear"></i> ${escapeHtml(getMonitorTypeName(config.monitor_type || 'Unknown'))} · ${status}</h5>
-                        <button class="config-modal-close" onclick="this.closest('.config-modal-overlay').remove(); document.body.style.overflow = '';">
+                        <button class="config-modal-close" onclick="this.closest('.config-modal-overlay').remove(); document.body.classList.remove('overflow-hidden');">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
@@ -1104,11 +525,11 @@
             modal.addEventListener('click', function(e) {
                 if (e.target === modal) {
                     modal.remove();
-                    document.body.style.overflow = '';
+                    document.body.classList.remove('overflow-hidden');
                 }
             });
             
-            document.body.style.overflow = 'hidden';
+            document.body.classList.add('overflow-hidden');
             
         } catch (error) {
             console.error('显示配置失败:', error);
@@ -1152,7 +573,7 @@
         const tbody = document.querySelector('.monitors-table tbody');
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                <td colspan="8" class="p-10 text-center text-slate-500">
                     <i class="bi bi-info-circle"></i> 请选择账号查看监控器
                 </td>
             </tr>
@@ -1169,32 +590,6 @@
         
         document.querySelectorAll('.monitor-type-tag').forEach(t => t.classList.remove('active'));
         document.querySelector('.monitor-type-tag').classList.add('active');
-    }
-    
-    function showNotification(message, type = 'info') {
-        const alertClass = {
-            'success': 'alert-success',
-            'error': 'alert-danger',
-            'warning': 'alert-warning',
-            'info': 'alert-info'
-        }[type] || 'alert-info';
-        
-        const notification = document.createElement('div');
-        notification.className = `alert ${alertClass} alert-dismissible fade show`;
-        notification.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px;';
-        notification.innerHTML = `
-            <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info-circle'}"></i>
-            ${message}
-            <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
-        `;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 5000);
     }
     
     function updatePagination(totalItems) {
@@ -1229,7 +624,7 @@
         if (startPage > 1) {
             paginationHTML += `<button class="page-btn" onclick="changePage(1)">1</button>`;
             if (startPage > 2) {
-                paginationHTML += `<span style="color: var(--text-muted); padding: 0 8px;">...</span>`;
+                paginationHTML += `<span class="px-2 text-slate-500">...</span>`;
             }
         }
         
@@ -1244,7 +639,7 @@
         
         if (endPage < totalPages) {
             if (endPage < totalPages - 1) {
-                paginationHTML += `<span style="color: var(--text-muted); padding: 0 8px;">...</span>`;
+                paginationHTML += `<span class="px-2 text-slate-500">...</span>`;
             }
             paginationHTML += `<button class="page-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
         }
@@ -1258,7 +653,7 @@
         `;
         
         paginationHTML += `
-            <div class="page-info" style="margin-left: 20px; color: var(--text-secondary); font-size: 14px;">
+            <div class="page-info ml-5">
                 显示第 ${(currentPage - 1) * itemsPerPage + 1} - ${Math.min(currentPage * itemsPerPage, totalItems)} 项，共 ${totalItems} 项
             </div>
         `;

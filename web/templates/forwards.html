@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}转发列表 - TG监控系统{% endblock %}
+{% block title %}转发列表 - TG监控{% endblock %}
 {% block page_title %}转发列表{% endblock %}
-{% block page_subtitle %}仅保留最新500条转发记录，失败记录可重试{% endblock %}
+{% block page_subtitle %}只保留最新 500 条，失败可重试{% endblock %}
 
 {% block content %}
-<div class="data-card">
-    <div style="display:flex; gap:12px; margin-bottom:16px;">
-        <select id="status-filter" class="form-input" style="max-width:160px;">
+<section class="data-card">
+    <div class="mb-4 flex flex-wrap gap-2">
+        <select id="status-filter" class="form-input max-w-40">
             <option value="">全部</option>
             <option value="failed">失败</option>
             <option value="success">成功</option>
@@ -15,8 +15,8 @@
         </select>
         <button class="btn btn-secondary" onclick="loadForwards()">刷新</button>
     </div>
-    <div style="overflow:auto;">
-        <table class="table" style="width:100%;">
+    <div class="table-responsive">
+        <table class="table">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -35,19 +35,17 @@
             </tbody>
         </table>
     </div>
-</div>
+</section>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 const tbody = document.getElementById('forward-rows');
-const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const statusText = status => ({success:'成功', failed:'失败', pending:'等待'}[status] || status);
+const statusText = status => ({success: '成功', failed: '失败', pending: '等待'}[status] || status);
 
 async function loadForwards() {
     const status = document.getElementById('status-filter').value;
-    const url = `/api/forwards?limit=500${status ? `&status=${status}` : ''}`;
-    const data = await fetch(url).then(r => r.json());
+    const data = await fetch(`/api/forwards?limit=500${status ? `&status=${status}` : ''}`).then(r => r.json());
     const rows = data.records || [];
     tbody.innerHTML = rows.length ? rows.map(row => `
         <tr>
@@ -59,13 +57,13 @@ async function loadForwards() {
             <td>${row.attempts}</td>
             <td>${esc(row.updated_at)}</td>
             <td title="${esc(row.last_error)}">${esc(row.last_error).slice(0, 80)}</td>
-            <td>${row.status === 'failed' ? `<button class="btn btn-primary" onclick="retryForward(${row.id})">重试</button>` : ''}</td>
+            <td>${row.status === 'failed' ? `<button class="btn btn-primary btn-sm" onclick="retryForward(${row.id})">重试</button>` : ''}</td>
         </tr>
     `).join('') : '<tr><td colspan="9">暂无记录</td></tr>';
 }
 
 async function retryForward(id) {
-    const result = await fetch(`/api/forwards/${id}/retry`, {method:'POST'}).then(r => r.json());
+    const result = await fetch(`/api/forwards/${id}/retry`, {method: 'POST'}).then(r => r.json());
     if (!result.success) alert(result.message || '重试失败');
     await loadForwards();
 }

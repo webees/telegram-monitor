@@ -5,410 +5,16 @@
 {% block page_title %}账号管理{% endblock %}
 {% block page_subtitle %}管理和配置您的Telegram账号{% endblock %}
 
-{% block extra_css %}
-<style>
-    .accounts-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 24px;
-        margin-bottom: 32px;
-    }
-    
-    .account-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        overflow: hidden;
-        transition: all var(--transition-base);
-        position: relative;
-    }
-    
-    .account-card:hover {
-        transform: translateY(-4px);
-        box-shadow: var(--shadow-xl);
-        border-color: var(--primary-color);
-    }
-    
-    .account-card.connecting {
-        border-color: var(--warning-color);
-    }
-    
-    .account-card.connected {
-        border-color: var(--success-color);
-    }
-    
-    .account-card.error {
-        border-color: var(--danger-color);
-    }
-    
-    .account-header {
-        padding: 20px;
-        background: linear-gradient(135deg, rgba(91, 95, 222, 0.1) 0%, rgba(123, 127, 238, 0.05) 100%);
-        border-bottom: 1px solid var(--border-color);
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-    
-    .account-avatar {
-        width: 56px;
-        height: 56px;
-        border-radius: var(--radius-full);
-        background: var(--primary-gradient);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-        color: white;
-        font-weight: 600;
-        position: relative;
-    }
-    
-    .account-avatar img {
-        width: 100%;
-        height: 100%;
-        border-radius: var(--radius-full);
-        object-fit: cover;
-    }
-    
-    .account-status-dot {
-        position: absolute;
-        bottom: 2px;
-        right: 2px;
-        width: 16px;
-        height: 16px;
-        border-radius: var(--radius-full);
-        border: 3px solid var(--bg-card);
-        background: var(--success-color);
-    }
-    
-    .account-status-dot.offline {
-        background: var(--text-muted);
-    }
-    
-    .account-status-dot.connecting {
-        background: var(--warning-color);
-        animation: pulse 1.5s infinite;
-    }
-    
-    .account-status-dot.error {
-        background: var(--danger-color);
-    }
-    
-    .account-status-dot.banned {
-        background: #dc3545;
-    }
-    
-    .account-status-dot.unauthorized {
-        background: #fd7e14;
-    }
-    
-    .account-status-dot.session_revoked {
-        background: #6f42c1;
-    }
-    
-    .account-status-dot.invalid {
-        background: #e83e8c;
-    }
-    
-    .account-info {
-        flex: 1;
-    }
-    
-    .account-name {
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 4px;
-    }
-    
-    .account-phone {
-        font-size: 13px;
-        color: var(--text-secondary);
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    
-    .account-body {
-        padding: 20px;
-    }
-    
-    .account-stats {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
-        margin-bottom: 20px;
-    }
-    
-    .account-stat {
-        text-align: center;
-        padding: 12px;
-        background: var(--bg-tertiary);
-        border-radius: var(--radius-md);
-    }
-    
-    .account-stat-value {
-        font-size: 20px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 4px;
-    }
-    
-    .account-stat-label {
-        font-size: 12px;
-        color: var(--text-secondary);
-    }
-    
-    .account-actions {
-        display: flex;
-        gap: 8px;
-        padding: 16px 20px;
-        background: var(--bg-tertiary);
-        border-top: 1px solid var(--border-color);
-    }
-    
-    .account-action-btn {
-        flex: 1;
-        padding: 8px;
-        background: transparent;
-        border: 1px solid var(--border-color);
-        color: var(--text-primary);
-        border-radius: var(--radius-md);
-        cursor: pointer;
-        transition: all var(--transition-base);
-        font-size: 13px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-    }
-    
-    .account-action-btn:hover {
-        background: var(--bg-hover);
-        border-color: var(--primary-color);
-        color: var(--primary-color);
-    }
-    
-    .account-action-btn.danger:hover {
-        background: rgba(239, 68, 68, 0.1);
-        border-color: var(--danger-color);
-        color: var(--danger-color);
-    }
-    
-    .add-account-card {
-        background: var(--bg-card);
-        border: 2px dashed var(--border-color);
-        border-radius: var(--radius-lg);
-        min-height: 320px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all var(--transition-base);
-    }
-    
-    .add-account-card:hover {
-        border-color: var(--primary-color);
-        background: var(--bg-hover);
-        transform: translateY(-4px);
-    }
-    
-    .add-account-icon {
-        width: 64px;
-        height: 64px;
-        border-radius: var(--radius-full);
-        background: rgba(91, 95, 222, 0.1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 32px;
-        color: var(--primary-color);
-        margin-bottom: 16px;
-    }
-    
-    .add-account-text {
-        font-size: 16px;
-        font-weight: 500;
-        color: var(--text-primary);
-        margin-bottom: 8px;
-    }
-    
-    .add-account-subtext {
-        font-size: 13px;
-        color: var(--text-secondary);
-    }
-    
-    .modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.8);
-        z-index: 2000;
-        align-items: center;
-        justify-content: center;
-        backdrop-filter: blur(4px);
-    }
-    
-    .modal.show {
-        display: flex;
-        animation: fadeIn 0.3s ease;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    
-    .modal-content {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-xl);
-        width: 90%;
-        max-width: 500px;
-        max-height: 90vh;
-        overflow-y: auto;
-        animation: slideUp 0.3s ease;
-    }
-    
-    @keyframes slideUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    .modal-header {
-        padding: 24px;
-        border-bottom: 1px solid var(--border-color);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-    
-    .modal-title {
-        font-size: 20px;
-        font-weight: 600;
-        color: var(--text-primary);
-    }
-    
-    .modal-close {
-        background: transparent;
-        border: none;
-        color: var(--text-secondary);
-        font-size: 24px;
-        cursor: pointer;
-        padding: 4px;
-        border-radius: var(--radius-sm);
-        transition: all var(--transition-base);
-    }
-    
-    .modal-close:hover {
-        background: var(--bg-hover);
-        color: var(--text-primary);
-    }
-    
-    .modal-body {
-        padding: 24px;
-    }
-    
-    .form-group {
-        margin-bottom: 20px;
-    }
-    
-    .form-label {
-        display: block;
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--text-secondary);
-        margin-bottom: 8px;
-    }
-    
-    .form-input {
-        width: 100%;
-        padding: 12px 16px;
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        color: var(--text-primary);
-        font-size: 14px;
-        transition: all var(--transition-base);
-    }
-    
-    .form-input:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(91, 95, 222, 0.1);
-    }
-    
-    .form-input::placeholder {
-        color: var(--text-muted);
-    }
-    
-    .form-help {
-        font-size: 12px;
-        color: var(--text-muted);
-        margin-top: 6px;
-    }
-    
-    .modal-footer {
-        padding: 20px 24px;
-        border-top: 1px solid var(--border-color);
-        display: flex;
-        gap: 12px;
-        justify-content: flex-end;
-    }
-    
-    .empty-state {
-        text-align: center;
-        padding: 60px 20px;
-    }
-    
-    .empty-state-icon {
-        width: 120px;
-        height: 120px;
-        margin: 0 auto 24px;
-        background: rgba(91, 95, 222, 0.1);
-        border-radius: var(--radius-full);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 48px;
-        color: var(--primary-color);
-    }
-    
-    .empty-state-title {
-        font-size: 20px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 8px;
-    }
-    
-    .empty-state-text {
-        font-size: 14px;
-        color: var(--text-secondary);
-        margin-bottom: 24px;
-    }
-</style>
-{% endblock %}
 
 {% block content %}
-<div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 24px;">
+<div class="mb-6 flex justify-end">
     <button class="btn btn-primary" onclick="showAddAccountModal()">
         <i class="bi bi-plus-lg"></i>
         添加账号
     </button>
 </div>
 
-<div class="stats-grid" style="margin-bottom: 32px;">
+<div class="stats-grid">
     <div class="stat-card">
         <div class="stat-header">
             <div class="stat-title">总账号数</div>
@@ -448,7 +54,7 @@
         </div>
     </div>
     
-    <div class="stat-card" style="border-left: 4px solid #e83e8c;">
+    <div class="stat-card border-l-4 border-pink-500">
         <div class="stat-header">
             <div class="stat-title">失效账号</div>
             <div class="stat-icon">
@@ -510,7 +116,7 @@
                     </select>
                 </div>
                 
-                <div class="form-group" id="proxyAddressGroup" style="display: none;">
+                <div class="form-group hidden" id="proxyAddressGroup">
                     <label class="form-label">代理地址</label>
                     <input type="text" class="form-input" id="proxyAddress" placeholder="例如：127.0.0.1:1080">
                     <div class="form-help">格式：IP地址:端口号</div>
@@ -541,7 +147,7 @@
             </button>
         </div>
         <div class="modal-body">
-            <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid var(--info-color); color: var(--info-color); padding: 16px; border-radius: var(--radius-md); margin-bottom: 24px;">
+            <div class="mb-6 rounded border border-sky-200 bg-sky-50 p-4 text-sky-700">
                 <i class="bi bi-phone"></i>
                 验证码已发送到您的Telegram账号,请检查消息。
             </div>
@@ -551,9 +157,8 @@
                 
                 <div class="form-group">
                     <label class="form-label">验证码</label>
-                    <input type="text" class="form-input" id="verification_code" name="code" 
-                           placeholder="请输入验证码" maxlength="6" required 
-                           style="text-align: center; font-size: 24px; letter-spacing: 8px;">
+                    <input type="text" class="form-input text-center text-2xl tracking-[0.5em]" id="verification_code" name="code"
+                           placeholder="请输入验证码" maxlength="6" required>
                     <div class="form-help">请输入Telegram发送给您的验证码（通常为5-6位数字）</div>
                 </div>
             </form>
@@ -577,7 +182,7 @@
             </button>
         </div>
         <div class="modal-body">
-            <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning-color); color: var(--warning-color); padding: 16px; border-radius: var(--radius-md); margin-bottom: 24px;">
+            <div class="mb-6 rounded border border-amber-200 bg-amber-50 p-4 text-amber-700">
                 <i class="bi bi-shield-lock"></i>
                 检测到您启用了两步验证，请输入您的两步验证密码。
             </div>
@@ -587,9 +192,9 @@
                 
                 <div class="form-group">
                     <label class="form-label">两步验证密码</label>
-                    <div style="position: relative;">
-                        <input type="password" class="form-input" id="two_factor_password" name="password" required style="padding-right: 45px;">
-                        <button type="button" id="togglePassword" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 16px;" onclick="togglePasswordVisibility()">
+                    <div class="relative">
+                        <input type="password" class="form-input pr-12" id="two_factor_password" name="password" required>
+                        <button type="button" id="togglePassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" onclick="togglePasswordVisibility()">
                             <i class="bi bi-eye"></i>
                         </button>
                     </div>
@@ -637,9 +242,9 @@
         const proxyAddressGroup = document.getElementById('proxyAddressGroup');
         
         if (proxyType) {
-            proxyAddressGroup.style.display = 'block';
+            proxyAddressGroup.classList.remove('hidden');
         } else {
-            proxyAddressGroup.style.display = 'none';
+            proxyAddressGroup.classList.add('hidden');
             document.getElementById('proxyAddress').value = '';
         }
     }
@@ -804,32 +409,6 @@
         }
     }
     
-    function showNotification(message, type = 'info') {
-        const alertClass = {
-            'success': 'alert-success',
-            'error': 'alert-danger',
-            'warning': 'alert-warning',
-            'info': 'alert-info'
-        }[type] || 'alert-info';
-        
-        const notification = document.createElement('div');
-        notification.className = `alert ${alertClass} alert-dismissible fade show`;
-        notification.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px;';
-        notification.innerHTML = `
-            <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info-circle'}"></i>
-            ${message}
-            <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
-        `;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 5000);
-    }
-    
     document.getElementById('addAccountModal').addEventListener('click', function(e) {
         if (e.target === this) {
             hideAddAccountModal();
@@ -861,7 +440,7 @@
             
             if (accounts.length === 0) {
                 grid.innerHTML = `
-                    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
+                    <div class="col-span-full p-10 text-center">
                         <div class="empty-state-icon">
                             <i class="bi bi-people"></i>
                         </div>
@@ -898,7 +477,7 @@
                                 <div class="account-phone">
                                     <i class="bi bi-phone"></i>
                                     ${account.phone}
-                                    <span style="margin-left: 8px; font-size: 11px; color: ${account.is_valid ? '#28a745' : '#dc3545'};">
+                                    <span class="ml-2 text-xs ${account.is_valid ? 'text-green-600' : 'text-red-600'}">
                                         ${account.status_display}
                                     </span>
                                 </div>

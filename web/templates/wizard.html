@@ -5,718 +5,6 @@
 {% block page_title %}配置向导{% endblock %}
 {% block page_subtitle %}快速创建和配置监控器{% endblock %}
 
-{% block extra_css %}
-<style>
-    .wizard-container {
-        max-width: 800px;
-        margin: 0 auto;
-    }
-
-    .wizard-steps {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 40px;
-        position: relative;
-        overflow-x: auto;
-        padding: 10px 0;
-    }
-
-    .wizard-steps::before {
-        content: '';
-        position: absolute;
-        top: 20px;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: var(--border-color);
-        z-index: 0;
-    }
-
-    .wizard-step {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        position: relative;
-        z-index: 1;
-        background: var(--bg-primary);
-        padding: 0 10px;
-        min-width: 80px;
-        flex-shrink: 0;
-    }
-
-    .wizard-step-number {
-        width: 40px;
-        height: 40px;
-        border-radius: var(--radius-full);
-        background: var(--bg-card);
-        border: 2px solid var(--border-color);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        color: var(--text-muted);
-        transition: all var(--transition-base);
-    }
-
-    .wizard-step.active .wizard-step-number {
-        background: var(--primary-gradient);
-        border-color: transparent;
-        color: white;
-        box-shadow: var(--shadow-glow);
-    }
-
-    .wizard-step.completed .wizard-step-number {
-        background: var(--success-gradient);
-        border-color: transparent;
-        color: white;
-    }
-
-    .wizard-step-title {
-        font-size: 13px;
-        color: var(--text-muted);
-        text-align: center;
-        max-width: 120px;
-        white-space: nowrap;
-    }
-
-    .wizard-step.active .wizard-step-title {
-        color: var(--primary-color);
-        font-weight: 500;
-    }
-
-    .wizard-step.completed .wizard-step-title {
-        color: var(--success-color);
-    }
-
-    .wizard-progress {
-        height: 4px;
-        background: var(--bg-tertiary);
-        border-radius: var(--radius-full);
-        overflow: hidden;
-        margin-bottom: 32px;
-    }
-
-    .wizard-progress-bar {
-        height: 100%;
-        background: var(--primary-gradient);
-        border-radius: var(--radius-full);
-        transition: width var(--transition-slow) ease;
-    }
-
-    .wizard-content {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        padding: 32px;
-        min-height: 400px;
-        animation: fadeInUp 0.3s ease;
-    }
-
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .wizard-content-header {
-        margin-bottom: 32px;
-    }
-
-    .wizard-content-title {
-        font-size: 20px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 8px;
-    }
-
-    .wizard-content-description {
-        font-size: 14px;
-        color: var(--text-secondary);
-    }
-
-    .form-section {
-        margin-bottom: 32px;
-    }
-
-    .form-section-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 16px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    .form-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 20px;
-    }
-
-    .form-group {
-        margin-bottom: 20px;
-    }
-
-    .nested-config {
-        margin-top: 12px;
-        padding: 16px;
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        background: var(--bg-secondary);
-    }
-
-    .field-spacer {
-        margin-top: 12px;
-    }
-
-    .form-label {
-        display: block;
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--text-secondary);
-        margin-bottom: 8px;
-    }
-
-    .form-label.required::after {
-        content: ' *';
-        color: var(--danger-color);
-    }
-
-    .form-input,
-    .form-select,
-    .form-textarea {
-        width: 100%;
-        padding: 12px 16px;
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        color: var(--text-primary);
-        font-size: 14px;
-        transition: all var(--transition-base);
-    }
-
-    .form-input:focus,
-    .form-select:focus,
-    .form-textarea:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(91, 95, 222, 0.1);
-    }
-
-    .form-textarea {
-        min-height: 100px;
-        resize: vertical;
-    }
-
-    .form-help {
-        font-size: 12px;
-        color: var(--text-muted);
-        margin-top: 6px;
-    }
-
-    .help-examples {
-        margin-top: 8px;
-        padding: 10px 12px;
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        background: var(--bg-tertiary);
-        color: var(--text-secondary);
-        font-size: 12px;
-        line-height: 1.6;
-    }
-
-    .help-examples code {
-        color: var(--text-primary);
-        white-space: pre-wrap;
-    }
-
-    .form-error {
-        font-size: 12px;
-        color: var(--danger-color);
-        margin-top: 6px;
-    }
-
-    .form-radio-group,
-    .form-checkbox-group {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .form-radio,
-    .form-checkbox {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px;
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        cursor: pointer;
-        transition: all var(--transition-base);
-    }
-
-    .form-radio:hover,
-    .form-checkbox:hover {
-        background: var(--bg-hover);
-        border-color: var(--primary-color);
-    }
-
-    .form-radio.selected,
-    .form-checkbox.selected {
-        background: rgba(91, 95, 222, 0.1);
-        border-color: var(--primary-color);
-    }
-
-    .form-radio input[type="radio"],
-    .form-checkbox input[type="checkbox"] {
-        width: 20px;
-        height: 20px;
-        accent-color: var(--primary-color);
-    }
-
-    .form-radio-label,
-    .form-checkbox-label {
-        flex: 1;
-    }
-
-    .form-radio-title,
-    .form-checkbox-title {
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--text-primary);
-        margin-bottom: 4px;
-    }
-
-    .form-radio-description,
-    .form-checkbox-description {
-        font-size: 12px;
-        color: var(--text-secondary);
-    }
-
-    .monitor-type-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 16px;
-        margin-bottom: 24px;
-    }
-
-    .monitor-type-card {
-        padding: 20px;
-        background: var(--bg-tertiary);
-        border: 2px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        text-align: center;
-        cursor: pointer;
-        transition: all var(--transition-base);
-    }
-
-    .monitor-type-card:hover {
-        background: var(--bg-hover);
-        transform: translateY(-2px);
-    }
-
-    .monitor-type-card.selected {
-        background: rgba(91, 95, 222, 0.1);
-        border-color: var(--primary-color);
-    }
-
-    .monitor-type-icon {
-        width: 48px;
-        height: 48px;
-        margin: 0 auto 12px;
-        background: rgba(91, 95, 222, 0.1);
-        border-radius: var(--radius-md);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-        color: var(--primary-color);
-    }
-
-    .monitor-type-card.selected .monitor-type-icon {
-        background: var(--primary-gradient);
-        color: white;
-    }
-
-    .monitor-type-name {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 4px;
-    }
-
-    .monitor-type-desc {
-        font-size: 12px;
-        color: var(--text-secondary);
-    }
-
-    .tag-input-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        padding: 8px;
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        min-height: 48px;
-        align-items: center;
-    }
-
-    .tag {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 10px;
-        background: var(--primary-gradient);
-        color: white;
-        border-radius: var(--radius-full);
-        font-size: 13px;
-    }
-
-    .tag-remove {
-        cursor: pointer;
-        font-size: 16px;
-        line-height: 1;
-        opacity: 0.8;
-        transition: opacity var(--transition-base);
-    }
-
-    .tag-remove:hover {
-        opacity: 1;
-    }
-
-    .tag-input {
-        flex: 1;
-        min-width: 100px;
-        background: transparent;
-        border: none;
-        color: var(--text-primary);
-        outline: none;
-    }
-
-    .wizard-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 32px;
-        padding-top: 24px;
-        border-top: 1px solid var(--border-color);
-    }
-
-    .wizard-footer-info {
-        font-size: 13px;
-        color: var(--text-secondary);
-    }
-
-    .wizard-footer-actions {
-        display: flex;
-        gap: 12px;
-    }
-
-    .preview-panel {
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        padding: 20px;
-    }
-
-    .preview-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 16px;
-    }
-
-    .preview-item {
-        display: flex;
-        justify-content: space-between;
-        padding: 8px 0;
-        border-bottom: 1px solid var(--border-color);
-        font-size: 13px;
-    }
-
-    .preview-item:last-child {
-        border-bottom: none;
-    }
-
-    .preview-label {
-        color: var(--text-secondary);
-    }
-
-    .preview-value {
-        color: var(--text-primary);
-        font-weight: 500;
-    }
-
-    .completion-container {
-        text-align: center;
-        padding: 40px 20px;
-    }
-
-    .completion-icon {
-        width: 80px;
-        height: 80px;
-        margin: 0 auto 24px;
-        background: var(--success-gradient);
-        border-radius: var(--radius-full);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 40px;
-        color: white;
-        animation: scaleIn 0.5s ease;
-    }
-
-    @keyframes scaleIn {
-        from {
-            transform: scale(0);
-            opacity: 0;
-        }
-        to {
-            transform: scale(1);
-            opacity: 1;
-        }
-    }
-
-    .completion-title {
-        font-size: 28px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 12px;
-    }
-
-    .completion-message {
-        font-size: 16px;
-        color: var(--text-secondary);
-        margin-bottom: 48px;
-        line-height: 1.6;
-    }
-
-    .action-cards {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
-        max-width: 900px;
-        margin: 0 auto;
-    }
-
-    .action-card {
-        background: var(--bg-card);
-        border: 2px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        padding: 32px 24px;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 16px;
-    }
-
-    .action-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-        border-color: var(--primary-color);
-    }
-
-    .action-card-icon {
-        width: 64px;
-        height: 64px;
-        border-radius: var(--radius-lg);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 32px;
-        transition: all 0.3s ease;
-    }
-
-    .action-card.primary .action-card-icon {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-    }
-
-    .action-card.secondary .action-card-icon {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
-    }
-
-    .action-card.tertiary .action-card-icon {
-        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        color: white;
-    }
-
-    .action-card:hover .action-card-icon {
-        transform: scale(1.1);
-    }
-
-    .action-card-title {
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin: 0;
-    }
-
-    .action-card-description {
-        font-size: 14px;
-        color: var(--text-secondary);
-        text-align: center;
-        line-height: 1.5;
-        margin: 0;
-    }
-
-    @media (max-width: 768px) {
-        .wizard-container {
-            padding: 0 16px;
-        }
-
-        .wizard-steps {
-            justify-content: flex-start;
-            gap: 8px;
-        }
-
-        .wizard-step {
-            min-width: 70px;
-            padding: 0 5px;
-        }
-
-        .wizard-step-number {
-            width: 32px;
-            height: 32px;
-            font-size: 14px;
-        }
-
-        .wizard-step-title {
-            font-size: 11px;
-            max-width: 70px;
-        }
-
-        .wizard-content {
-            padding: 20px 16px;
-        }
-
-        .wizard-content-title {
-            font-size: 18px;
-        }
-
-        .form-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .monitor-type-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-        }
-
-        .monitor-type-card {
-            padding: 16px 12px;
-        }
-
-        .monitor-type-icon {
-            width: 40px;
-            height: 40px;
-            font-size: 20px;
-        }
-
-        .monitor-type-name {
-            font-size: 13px;
-        }
-
-        .monitor-type-desc {
-            font-size: 11px;
-        }
-
-        .wizard-footer {
-            flex-direction: column;
-            gap: 16px;
-            align-items: stretch;
-        }
-
-        .wizard-footer > div:first-child {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .wizard-footer-actions {
-            flex-direction: column;
-            width: 100%;
-        }
-
-        .wizard-footer-actions .btn {
-            width: 100%;
-            justify-content: center;
-        }
-
-        .completion-container {
-            padding: 30px 16px;
-        }
-
-        .completion-icon {
-            width: 64px;
-            height: 64px;
-            font-size: 32px;
-            margin-bottom: 20px;
-        }
-
-        .completion-title {
-            font-size: 22px;
-            margin-bottom: 10px;
-        }
-
-        .completion-message {
-            font-size: 14px;
-            margin-bottom: 32px;
-        }
-
-        .action-cards {
-            grid-template-columns: 1fr;
-            gap: 16px;
-        }
-
-        .action-card {
-            padding: 24px 20px;
-        }
-
-        .action-card-icon {
-            width: 56px;
-            height: 56px;
-            font-size: 28px;
-        }
-
-        .action-card-title {
-            font-size: 16px;
-        }
-
-        .action-card-description {
-            font-size: 13px;
-        }
-    }
-
-    @media (max-width: 480px) {
-        .monitor-type-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .wizard-step {
-            min-width: 60px;
-        }
-
-        .wizard-step-title {
-            font-size: 10px;
-            max-width: 60px;
-        }
-    }
-</style>
-{% endblock %}
 
 {% block content %}
 <div class="wizard-container">
@@ -746,11 +34,11 @@
     </div>
 
     <div class="wizard-progress">
-        <div class="wizard-progress-bar" style="width: 40%;"></div>
+        <progress class="wizard-progress-bar h-2 w-full" max="100" value="40"></progress>
     </div>
 
     <div class="wizard-content">
-                    <div class="step-content" id="step1" style="display: block;">
+                    <div class="step-content" id="step1">
             <div class="wizard-content-header">
                 <h2 class="wizard-content-title">选择监控类型</h2>
                 <p class="wizard-content-description">选择要创建的监控器类型</p>
@@ -809,7 +97,7 @@
             </form>
         </div>
 
-        <div class="step-content" id="step2" style="display: none;">
+        <div class="step-content hidden" id="step2">
             <div class="wizard-content-header">
                 <h2 class="wizard-content-title">基础配置</h2>
                 <p class="wizard-content-description">配置监控器的基本信息和参数</p>
@@ -837,7 +125,7 @@
             <div class="form-section">
                 <h3 class="form-section-title">监控配置</h3>
 
-                <div id="keyword-config" class="monitor-config" style="display: block;">
+                <div id="keyword-config" class="monitor-config">
                     <div class="form-group">
                         <label class="form-label required">监控关键词</label>
                         <div class="tag-input-container">
@@ -856,7 +144,7 @@
                     </div>
                 </div>
 
-                <div id="file-config" class="monitor-config" style="display: none;">
+                <div id="file-config" class="monitor-config hidden">
                     <div class="form-group">
                         <label class="form-label required">文件扩展名</label>
                         <div class="tag-input-container">
@@ -884,7 +172,7 @@
                     </div>
                 </div>
 
-                <div id="ai-config" class="monitor-config" style="display: none;">
+                <div id="ai-config" class="monitor-config hidden">
                     <div class="form-group">
                         <label class="form-label required">AI提示词</label>
                         <textarea class="form-input" rows="4" placeholder="描述要监控的消息特征，例如：包含技术讨论的消息"></textarea>
@@ -894,7 +182,7 @@
                     <div class="form-group">
                         <label class="form-label">温度参数</label>
                         <input type="range" class="form-range" min="0" max="100" value="70" id="temperature">
-                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);">
+                        <div class="flex justify-between text-xs text-slate-500">
                             <span>精确</span>
                             <span id="temperature-value">0.7</span>
                             <span>创造性</span>
@@ -902,7 +190,7 @@
                     </div>
                 </div>
 
-                <div id="all-config" class="monitor-config" style="display: none;">
+                <div id="all-config" class="monitor-config hidden">
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle"></i>
                         全量监控将捕获所选群组/频道的所有消息
@@ -917,7 +205,7 @@
                     </div>
                 </div>
 
-                <div id="button-config" class="monitor-config" style="display: none;">
+                <div id="button-config" class="monitor-config hidden">
                     <div class="form-group">
                         <label class="form-label required">按钮文本</label>
                         <input type="text" class="form-input" name="button_text" placeholder="例如：立即领取" required>
@@ -939,7 +227,7 @@
                     </div>
                 </div>
 
-                <div id="image_button-config" class="monitor-config" style="display: none;">
+                <div id="image_button-config" class="monitor-config hidden">
                     <div class="form-group">
                         <label class="form-label required">按钮文本</label>
                         <input type="text" class="form-input" name="button_text" placeholder="例如：领取奖励" required>
@@ -972,11 +260,11 @@
                 <h3 class="form-section-title">监控范围</h3>
                 <div class="form-group">
                     <label class="form-label">选择要监控的群组/频道</label>
-                    <div id="channels-loading" style="text-align: center; padding: 20px; color: var(--text-secondary);">
-                        <i class="bi bi-arrow-clockwise" style="animation: spin 1s linear infinite;"></i>
+                    <div id="channels-loading" class="p-5 text-center text-slate-500">
+                        <i class="bi bi-arrow-clockwise"></i>
                         正在加载频道列表...
                     </div>
-                    <div class="form-checkbox-group" id="channels-list" style="display: none;">
+                    <div class="form-checkbox-group hidden" id="channels-list">
                     </div>
                     <div class="form-help">选择一个或多个要监控的群组/频道</div>
                 </div>
@@ -1003,7 +291,7 @@
                     </div>
                 </div>
 
-                <div class="form-grid" id="filter-ids" style="display: none;">
+                <div class="form-grid hidden" id="filter-ids">
                     <div class="form-group">
                         <label class="form-label">用户ID列表</label>
                         <textarea class="form-input" name="user_ids" rows="3" placeholder="每行一个ID"></textarea>
@@ -1034,7 +322,7 @@
                     <div class="form-help">当转发受限时自动下载并重新发送</div>
                 </div>
 
-                <div class="form-group" id="max-download-group" style="display: none;">
+                <div class="form-group hidden" id="max-download-group">
                     <label class="form-label">最大下载大小 (MB)</label>
                     <input type="number" class="form-input" name="max_download_size" placeholder="50" min="1" max="500">
                     <div class="form-help">增强转发时的最大文件下载大小</div>
@@ -1043,7 +331,7 @@
                             <div class="form-group">
                 <label class="form-label">监控优先级</label>
                 <input type="range" class="form-range" name="priority" min="1" max="100" value="50" id="priority">
-                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);">
+                <div class="flex justify-between text-xs text-slate-500">
                     <span>高优先级</span>
                     <span id="priority-value">50</span>
                     <span>低优先级</span>
@@ -1069,7 +357,7 @@
                     <div class="form-help">当监控到匹配的消息时自动回复</div>
                 </div>
 
-                <div class="form-group" id="reply-config" style="display: none;">
+                <div class="form-group hidden" id="reply-config">
                     <label class="form-label">回复内容</label>
                     <div class="tag-input-container">
                         <input type="text" class="tag-input" name="reply_texts" placeholder="输入回复内容后按回车，支持多条">
@@ -1085,7 +373,7 @@
                     <div class="form-help">当监控到匹配的消息时自动转发</div>
                 </div>
 
-                <div class="form-group" id="forward-config" style="display: none;">
+                <div class="form-group hidden" id="forward-config">
                     <label class="form-label">转发目标ID</label>
                     <input type="text" class="form-input" name="forward_target_id" placeholder="-1001234567890,-1009876543210">
                     <div class="form-help">填目标群或频道ID，不是群名称。多个目标用英文逗号分隔。</div>
@@ -1100,7 +388,7 @@
                     </label>
                     <div class="form-help">转发前调用AI清理广告并识别主题。AI失败时不会发原文，会进入转发列表等待重试。</div>
 
-                    <div id="forward-rewrite-config" class="nested-config" style="display: none;">
+                    <div id="forward-rewrite-config" class="nested-config hidden">
                         <label class="form-label">追加内容模板</label>
                         <textarea class="form-input" name="forward_rewrite_template" rows="5" placeholder="{clean_text}&#10;&#10;更多{topic}资讯，请关注 @your_channel"></textarea>
                         <div class="form-help">
@@ -1152,21 +440,21 @@
             </form>
         </div>
 
-        <div class="step-content" id="step3" style="display: none;">
+        <div class="step-content hidden" id="step3">
             <div class="wizard-content-header">
                 <h2 class="wizard-content-title">通知与转发</h2>
                 <p class="wizard-content-description">配置消息匹配后的操作</p>
             </div>
         </div>
 
-        <div class="step-content" id="step4" style="display: none;">
+        <div class="step-content hidden" id="step4">
             <div class="wizard-content-header">
                 <h2 class="wizard-content-title">高级设置</h2>
                 <p class="wizard-content-description">配置过滤规则和执行限制</p>
             </div>
         </div>
 
-        <div class="step-content" id="step5" style="display: none;">
+        <div class="step-content hidden" id="step5">
             <div class="wizard-content-header">
                 <h2 class="wizard-content-title">确认创建</h2>
                 <p class="wizard-content-description">检查配置并创建监控器</p>
@@ -1296,7 +584,7 @@
         const progressBar = document.querySelector('.wizard-progress-bar');
 
         if (step.progress) {
-            progressBar.style.width = step.progress.percentage + '%';
+            progressBar.value = step.progress.percentage;
             currentStep = step.progress.current;
         }
 
@@ -1313,9 +601,9 @@
         });
 
         formHtml += `
-                <div class="wizard-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border-color);">
-                    <div style="display: flex; align-items: center; gap: 20px;">
-                        <div class="wizard-footer-info" style="font-size: 13px; color: var(--text-secondary);">
+                <div class="wizard-footer">
+                    <div class="flex items-center gap-5">
+                        <div class="wizard-footer-info text-sm text-slate-500">
                             ${step.progress ? `步骤 ${step.progress.current} / ${step.progress.total}` : ''}
                         </div>
                         <button type="button" class="btn btn-secondary" onclick="cancelWizard()">
@@ -1323,7 +611,7 @@
                             取消
                         </button>
                     </div>
-                    <div class="wizard-footer-actions" style="display: flex; gap: 12px;">
+                    <div class="wizard-footer-actions">
                         <button type="button" class="btn btn-secondary" onclick="goToPreviousStep()"
                                 ${step.progress && step.progress.current <= 1 ? 'disabled' : ''}>
                             <i class="bi bi-arrow-left"></i>
@@ -1361,8 +649,8 @@
     }
 
     function renderField(field) {
-        const display = field.show === false ? ' style="display: none;"' : '';
-        let html = `<div class="form-group" id="field-${escapeAttr(field.name)}"${display}>`;
+        const displayClass = field.show === false ? ' hidden' : '';
+        let html = `<div class="form-group${displayClass}" id="field-${escapeAttr(field.name)}">`;
 
         const currentValue = field.value !== undefined ? field.value :
                            (isEditMode && editConfig[field.name] !== undefined ? editConfig[field.name] : '');
@@ -1442,17 +730,17 @@
             case 'range':
                 const rangeValue = currentValue || field.default;
                 html += `
-                    <div style="display: flex; align-items: center; gap: 16px;">
-                        <input type="range" class="form-range" name="${field.name}"
+                    <div class="flex items-center gap-4">
+                        <input type="range" class="form-range flex-1" name="${field.name}"
                                min="${field.min}" max="${field.max}" step="${field.step || 1}"
-                               value="${rangeValue}" oninput="updateRangeValue('${field.name}', this.value)" style="flex: 1;">
-                        <span id="${field.name}_value" style="min-width: 50px; text-align: right;">${escapeHtml(rangeValue)}</span>
+                               value="${rangeValue}" oninput="updateRangeValue('${field.name}', this.value)">
+                        <span id="${field.name}_value" class="min-w-12 text-right">${escapeHtml(rangeValue)}</span>
                     </div>
                 `;
                 break;
 
             case 'readonly':
-                html += `<div class="form-control-plaintext" style="padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-md);">${escapeHtml(field.value)}</div>`;
+                html += `<div class="form-control-plaintext rounded border border-slate-200 bg-slate-50 px-4 py-3">${escapeHtml(field.value)}</div>`;
                 break;
         }
 
@@ -1500,7 +788,7 @@
                         }
 
                         console.log(`字段 ${field.name} 应该显示: ${shouldShow}`);
-                        fieldElement.style.display = shouldShow ? 'block' : 'none';
+                        setVisible(fieldElement, shouldShow);
 
                         const inputs = fieldElement.querySelectorAll('input, select, textarea');
                         inputs.forEach(input => {
@@ -1656,10 +944,10 @@
         }
 
         const errorHtml = errors.map(error =>
-            `<div class="alert alert-danger alert-dismissible fade show" style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger-color); color: var(--danger-color); padding: 16px; border-radius: var(--radius-md); margin-bottom: 16px;">
+            `<div class="alert alert-danger mb-4">
                 <i class="bi bi-exclamation-circle"></i>
                 ${error}
-                <button type="button" class="btn-close" onclick="this.parentElement.remove()" style="background: transparent; border: none; color: var(--danger-color); cursor: pointer; float: right;">×</button>
+                <button type="button" class="float-right text-red-700" onclick="this.parentElement.remove()">×</button>
             </div>`
         ).join('');
 
@@ -1713,7 +1001,7 @@
             </div>
         `;
 
-        document.querySelector('.wizard-progress-bar').style.width = '100%';
+        document.querySelector('.wizard-progress-bar').value = 100;
     }
 
     function cancelWizard() {
@@ -1793,7 +1081,7 @@
         });
 
         const progress = (currentStep / totalSteps) * 100;
-        document.querySelector('.wizard-progress-bar').style.width = progress + '%';
+        document.querySelector('.wizard-progress-bar').value = progress;
 
     }
 
@@ -1817,19 +1105,16 @@
 
     function loadStepContent() {
         document.querySelectorAll('.step-content').forEach(step => {
-            step.style.display = 'none';
+            setVisible(step, false);
         });
 
         const stepEl = document.getElementById(`step${currentStep}`);
         if (stepEl) {
-            stepEl.style.display = 'block';
+            setVisible(stepEl, true);
         }
 
         const content = document.querySelector('.wizard-content');
-        content.style.animation = 'none';
-        setTimeout(() => {
-            content.style.animation = 'fadeInUp 0.3s ease';
-        }, 10);
+        content.classList.add('opacity-100');
     }
 
     function submitWizard() {
@@ -1896,13 +1181,13 @@
             selectedMonitorType = this.getAttribute('data-type');
 
             document.querySelectorAll('.monitor-config').forEach(config => {
-                config.style.display = 'none';
+                setVisible(config, false);
             });
 
             const configId = selectedMonitorType + '-config';
             const configElement = document.getElementById(configId);
             if (configElement) {
-                configElement.style.display = 'block';
+                setVisible(configElement, true);
             }
         });
     });
@@ -1911,9 +1196,9 @@
         radio.addEventListener('change', function() {
             const filterIds = document.getElementById('filter-ids');
             if (this.value === 'whitelist' || this.value === 'blacklist') {
-                filterIds.style.display = 'block';
+                setVisible(filterIds, true, 'grid');
             } else {
-                filterIds.style.display = 'none';
+                setVisible(filterIds, false);
             }
         });
     });
@@ -1921,34 +1206,34 @@
     document.getElementById('enhanced_forward')?.addEventListener('change', function() {
         const maxDownloadGroup = document.getElementById('max-download-group');
         if (this.checked) {
-            maxDownloadGroup.style.display = 'block';
+            setVisible(maxDownloadGroup, true);
         } else {
-            maxDownloadGroup.style.display = 'none';
+            setVisible(maxDownloadGroup, false);
         }
     });
 
     document.getElementById('auto_reply')?.addEventListener('change', function() {
         const replyConfig = document.getElementById('reply-config');
         if (this.checked) {
-            replyConfig.style.display = 'block';
+            setVisible(replyConfig, true);
         } else {
-            replyConfig.style.display = 'none';
+            setVisible(replyConfig, false);
         }
     });
 
     document.getElementById('auto_forward')?.addEventListener('change', function() {
         const forwardConfig = document.getElementById('forward-config');
         if (this.checked) {
-            forwardConfig.style.display = 'block';
+            setVisible(forwardConfig, true);
         } else {
-            forwardConfig.style.display = 'none';
+            setVisible(forwardConfig, false);
         }
     });
 
     document.getElementById('forward_rewrite_enabled')?.addEventListener('change', function() {
         const rewriteConfig = document.getElementById('forward-rewrite-config');
         if (rewriteConfig) {
-            rewriteConfig.style.display = this.checked ? 'block' : 'none';
+            setVisible(rewriteConfig, this.checked);
         }
     });
 
@@ -1973,13 +1258,13 @@
             selectedMonitorType = this.getAttribute('data-type');
 
             document.querySelectorAll('.monitor-config').forEach(config => {
-                config.style.display = 'none';
+                setVisible(config, false);
             });
 
             const configId = selectedMonitorType + '-config';
             const configElement = document.getElementById(configId);
             if (configElement) {
-                configElement.style.display = 'block';
+                setVisible(configElement, true);
             }
         });
     });
@@ -2013,22 +1298,22 @@
         const loadingDiv = document.getElementById('channels-loading');
         const channelsList = document.getElementById('channels-list');
 
-        if (loadingDiv) loadingDiv.style.display = 'block';
+        if (loadingDiv) setVisible(loadingDiv, true);
         if (channelsList) {
-            channelsList.style.display = 'none';
+            setVisible(channelsList, false);
             channelsList.innerHTML = '';
         }
 
         fetch(`/api/accounts/${accountSelect.value}/channels`)
             .then(res => res.json())
             .then(data => {
-                if (loadingDiv) loadingDiv.style.display = 'none';
+                if (loadingDiv) setVisible(loadingDiv, false);
                 if (channelsList) {
-                    channelsList.style.display = 'block';
+                    setVisible(channelsList, true);
 
                     const channels = data.channels || [];
                     if (channels.length === 0) {
-                        channelsList.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">暂无可用的群组/频道</div>';
+                        channelsList.innerHTML = '<div class="p-5 text-center text-slate-500">暂无可用的群组/频道</div>';
                     } else {
                         channels.forEach(channel => {
                             const checkbox = document.createElement('label');
@@ -2047,10 +1332,10 @@
             })
             .catch(err => {
                 console.error('Failed to load channels:', err);
-                if (loadingDiv) loadingDiv.style.display = 'none';
+                if (loadingDiv) setVisible(loadingDiv, false);
                 if (channelsList) {
-                    channelsList.style.display = 'block';
-                    channelsList.innerHTML = '<div style="color: var(--danger-color); text-align: center; padding: 20px;">加载失败，请重试</div>';
+                    setVisible(channelsList, true);
+                    channelsList.innerHTML = '<div class="p-5 text-center text-red-600">加载失败，请重试</div>';
                 }
             });
     }

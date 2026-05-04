@@ -4,207 +4,6 @@
 {% block page_title %}程序日志{% endblock %}
 {% block page_subtitle %}实时查看系统运行日志{% endblock %}
 
-{% block extra_css %}
-<style>
-    .logs-document {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        overflow: hidden;
-        box-shadow: var(--shadow-sm);
-    }
-
-    .logs-toolbar {
-        background: var(--bg-secondary);
-        padding: 12px 20px;
-        border-bottom: 1px solid var(--border-color);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 12px;
-    }
-
-    .logs-info {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        font-size: 14px;
-        color: var(--text-secondary);
-    }
-
-    .logs-actions {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .log-filter-btn {
-        padding: 6px 12px;
-        border: 1px solid var(--border-color);
-        background: var(--bg-card);
-        color: var(--text-secondary);
-        border-radius: var(--radius-md);
-        cursor: pointer;
-        font-size: 13px;
-        transition: all var(--transition-base);
-    }
-
-    .log-filter-btn.active {
-        background: var(--primary-color);
-        color: white;
-        border-color: var(--primary-color);
-    }
-
-    .log-filter-btn.error.active { background: var(--danger-color); border-color: var(--danger-color); }
-    .log-filter-btn.warning.active { background: var(--warning-color); border-color: var(--warning-color); }
-    .log-filter-btn.info.active { background: var(--info-color); border-color: var(--info-color); }
-    .log-filter-btn.debug.active { background: var(--text-muted); border-color: var(--text-muted); }
-
-    .logs-viewer {
-        height: 70vh;
-        overflow-y: auto;
-        background: white;
-        color: var(--text-primary);
-        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
-        font-size: 14px;
-        line-height: 1.6;
-        border-radius: 0;
-    }
-
-    .log-entry {
-        padding: 8px 20px;
-        border-bottom: 1px solid var(--border-color);
-        transition: background-color var(--transition-base);
-    }
-
-    .log-entry:hover {
-        background: var(--bg-hover);
-    }
-
-    .log-entry:last-child {
-        border-bottom: none;
-    }
-
-    .log-header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 4px;
-        font-size: 13px;
-    }
-
-    .log-time {
-        color: var(--text-muted);
-        font-weight: 500;
-        min-width: 180px;
-    }
-
-    .log-badge {
-        padding: 2px 8px;
-        border-radius: var(--radius-sm);
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        min-width: 50px;
-        text-align: center;
-    }
-
-    .log-badge.error {
-        background: rgba(239, 68, 68, 0.1);
-        color: var(--danger-color);
-        border: 1px solid rgba(239, 68, 68, 0.2);
-    }
-
-    .log-badge.warning {
-        background: rgba(245, 158, 11, 0.1);
-        color: var(--warning-color);
-        border: 1px solid rgba(245, 158, 11, 0.2);
-    }
-
-    .log-badge.info {
-        background: rgba(59, 130, 246, 0.1);
-        color: var(--info-color);
-        border: 1px solid rgba(59, 130, 246, 0.2);
-    }
-
-    .log-badge.debug {
-        background: rgba(156, 163, 175, 0.1);
-        color: var(--text-muted);
-        border: 1px solid rgba(156, 163, 175, 0.2);
-    }
-
-    .log-source {
-        color: var(--text-secondary);
-        font-weight: 500;
-        min-width: 120px;
-    }
-
-    .log-content {
-        color: var(--text-primary);
-        font-size: 14px;
-        line-height: 1.5;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-    }
-
-    .log-empty {
-        text-align: center;
-        padding: 60px 20px;
-        color: var(--text-muted);
-    }
-
-    .log-empty-icon {
-        font-size: 48px;
-        margin-bottom: 16px;
-        opacity: 0.5;
-    }
-
-    .log-summary {
-        display: flex;
-        align-items: center;
-        gap: 20px;
-        font-size: 13px;
-    }
-
-    .log-count {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .log-count-badge {
-        background: var(--bg-tertiary);
-        padding: 2px 6px;
-        border-radius: var(--radius-sm);
-        font-weight: 600;
-        min-width: 24px;
-        text-align: center;
-    }
-
-    .loading-indicator {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: var(--text-secondary);
-        font-size: 13px;
-    }
-
-    .loading-spinner {
-        width: 16px;
-        height: 16px;
-        border: 2px solid var(--border-color);
-        border-top: 2px solid var(--primary-color);
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-</style>
-{% endblock %}
 
 {% block content %}
 <div class="logs-document">
@@ -215,20 +14,20 @@
                     <span>总计:</span>
                     <span class="log-count-badge" id="total-logs">0</span>
                 </div>
-                <div class="log-count" style="color: var(--danger-color);">
+                <div class="log-count text-red-600">
                     <span>错误:</span>
                     <span class="log-count-badge" id="error-count">0</span>
                 </div>
-                <div class="log-count" style="color: var(--warning-color);">
+                <div class="log-count text-amber-600">
                     <span>警告:</span>
                     <span class="log-count-badge" id="warning-count">0</span>
                 </div>
-                <div class="log-count" style="color: var(--info-color);">
+                <div class="log-count text-sky-600">
                     <span>信息:</span>
                     <span class="log-count-badge" id="info-count">0</span>
                 </div>
             </div>
-            <div class="loading-indicator" id="loading-indicator" style="display: none;">
+            <div class="loading-indicator hidden" id="loading-indicator">
                 <div class="loading-spinner"></div>
                 <span>更新中...</span>
             </div>
@@ -241,7 +40,7 @@
             <button class="log-filter-btn info" data-level="info">信息</button>
             <button class="log-filter-btn debug" data-level="debug">调试</button>
             
-            <div style="width: 1px; height: 20px; background: var(--border-color); margin: 0 8px;"></div>
+            <div class="mx-2 h-5 border-l border-slate-200"></div>
             
             <button class="btn btn-outline-danger btn-sm" onclick="clearLogs()" title="清空日志">
                 <i class="bi bi-trash"></i> 清空
@@ -316,7 +115,7 @@
         } catch (error) {
             console.error('加载日志失败:', error);
             document.getElementById('logs-viewer').innerHTML = `
-                <div style="color: var(--danger-color); text-align: center; padding: 20px;">加载日志失败: ${error.message}</div>
+                <div class="p-5 text-center text-red-600">加载日志失败: ${error.message}</div>
             `;
         }
     }
@@ -425,11 +224,11 @@
         if (autoScroll) {
             btn.className = 'btn btn-success btn-sm';
             btn.innerHTML = '<i class="bi bi-arrow-down-circle-fill"></i>';
-            indicator.style.display = 'block';
+            indicator.classList.remove('hidden');
         } else {
             btn.className = 'btn btn-secondary btn-sm';
             btn.innerHTML = '<i class="bi bi-arrow-down-circle"></i>';
-            indicator.style.display = 'none';
+            indicator.classList.add('hidden');
         }
     }
 
@@ -480,12 +279,13 @@
         const refreshBtn = document.querySelector('button[onclick="refreshLogs()"]');
         
         if (loadingIndicator) {
-            loadingIndicator.style.display = 'flex';
+            loadingIndicator.classList.remove('hidden');
+            loadingIndicator.classList.add('flex');
         }
         
         if (refreshBtn) {
             refreshBtn.disabled = true;
-            refreshBtn.style.opacity = '0.5';
+            refreshBtn.classList.add('opacity-50');
         }
         
         loadLogs().then(() => {
@@ -494,12 +294,13 @@
             showNotification('刷新失败: ' + error.message, 'error');
         }).finally(() => {
             if (loadingIndicator) {
-                loadingIndicator.style.display = 'none';
+                loadingIndicator.classList.add('hidden');
+                loadingIndicator.classList.remove('flex');
             }
             
             if (refreshBtn) {
                 refreshBtn.disabled = false;
-                refreshBtn.style.opacity = '1';
+                refreshBtn.classList.remove('opacity-50');
             }
         });
     }
@@ -562,38 +363,6 @@
             console.error('下载日志失败:', error);
             showNotification('下载日志失败: ' + error.message, 'error');
         }
-    }
-
-    function showNotification(message, type = 'info') {
-        const colors = {
-            'success': '#10b981',
-            'error': '#ef4444', 
-            'warning': '#f59e0b',
-            'info': '#3b82f6'
-        };
-        
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: ${colors[type] || colors.info};
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            z-index: 10000;
-            max-width: 400px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        `;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 3000);
     }
 
     window.addEventListener('beforeunload', function() {
