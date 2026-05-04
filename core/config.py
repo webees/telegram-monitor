@@ -54,33 +54,47 @@ class Config:
         self.validate_config()
     
     def load_from_env(self):
-        if os.getenv('TG_API_ID'):
+        def env(name, default=None):
+            value = os.getenv(name, "").strip()
+            return value if value else default
+
+        def env_int(name, default):
+            value = env(name)
+            if value is None:
+                return default
             try:
-                self.TG_API_ID = int(os.getenv('TG_API_ID'))
+                return int(value)
+            except ValueError:
+                logger.error(f"{name} 必须是数字")
+                return default
+
+        if env('TG_API_ID'):
+            try:
+                self.TG_API_ID = int(env('TG_API_ID'))
             except ValueError:
                 logger.error("TG_API_ID 必须是数字")
         
-        self.TG_API_HASH = os.getenv('TG_API_HASH')
+        self.TG_API_HASH = env('TG_API_HASH')
         
-        self.OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-        self.OPENAI_MODEL = os.getenv('OPENAI_MODEL', self.OPENAI_MODEL)
-        self.OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', self.OPENAI_BASE_URL)
-        self.EMAIL_SMTP_SERVER = os.getenv('EMAIL_SMTP_SERVER', self.EMAIL_SMTP_SERVER)
-        self.EMAIL_SMTP_PORT = int(os.getenv('EMAIL_SMTP_PORT', self.EMAIL_SMTP_PORT))
-        self.EMAIL_USERNAME = os.getenv('EMAIL_USERNAME')
-        self.EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
-        self.EMAIL_FROM = os.getenv('EMAIL_FROM')
-        self.EMAIL_TO = os.getenv('EMAIL_TO')
+        self.OPENAI_API_KEY = env('OPENAI_API_KEY')
+        self.OPENAI_MODEL = env('OPENAI_MODEL', self.OPENAI_MODEL)
+        self.OPENAI_BASE_URL = env('OPENAI_BASE_URL', self.OPENAI_BASE_URL)
+        self.EMAIL_SMTP_SERVER = env('EMAIL_SMTP_SERVER', self.EMAIL_SMTP_SERVER)
+        self.EMAIL_SMTP_PORT = env_int('EMAIL_SMTP_PORT', self.EMAIL_SMTP_PORT)
+        self.EMAIL_USERNAME = env('EMAIL_USERNAME')
+        self.EMAIL_PASSWORD = env('EMAIL_PASSWORD')
+        self.EMAIL_FROM = env('EMAIL_FROM')
+        self.EMAIL_TO = env('EMAIL_TO')
         
-        self.WEB_HOST = os.getenv('WEB_HOST', self.WEB_HOST)
-        self.WEB_PORT = int(os.getenv('WEB_PORT', self.WEB_PORT))
-        self.WEB_DEBUG = os.getenv('WEB_DEBUG', 'false').lower() == 'true'
-        self.WEB_USERNAME = os.getenv('WEB_USERNAME', self.WEB_USERNAME)
-        self.WEB_PASSWORD = os.getenv('WEB_PASSWORD', self.WEB_PASSWORD)
+        self.WEB_HOST = env('WEB_HOST', self.WEB_HOST)
+        self.WEB_PORT = env_int('WEB_PORT', self.WEB_PORT)
+        self.WEB_DEBUG = env('WEB_DEBUG', 'false').lower() == 'true'
+        self.WEB_USERNAME = env('WEB_USERNAME', self.WEB_USERNAME)
+        self.WEB_PASSWORD = env('WEB_PASSWORD', self.WEB_PASSWORD)
         
-        self.DATA_DIR = os.getenv('DATA_DIR', self.DATA_DIR)
-        self.LOGS_DIR = os.getenv('LOGS_DIR', self.LOGS_DIR)
-        self.DOWNLOADS_DIR = os.getenv('DOWNLOADS_DIR', self.DOWNLOADS_DIR)
+        self.DATA_DIR = env('DATA_DIR', self.DATA_DIR)
+        self.LOGS_DIR = env('LOGS_DIR', self.LOGS_DIR)
+        self.DOWNLOADS_DIR = env('DOWNLOADS_DIR', self.DOWNLOADS_DIR)
         
     
     def create_directories(self):

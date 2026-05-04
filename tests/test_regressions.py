@@ -1,10 +1,13 @@
 import asyncio
 import json
 from datetime import datetime
+from pathlib import Path
 from types import SimpleNamespace
 
 from core.account import AccountManager
+from core.config import Config, config as app_config
 from core.forward import EnhancedForwardService
+from core.forward_store import ForwardStore
 from core.model import (
     Account,
     AccountConfig,
@@ -178,6 +181,48 @@ def test_copy_message_without_source_rewrites_text_when_enabled(monkeypatch):
     assert client.sent == [(99, "清理后的新闻\n\n我的广告")]
 
 
+def test_copy_message_without_source_blocks_original_when_rewrite_fails(monkeypatch):
+    class FakeAIService:
+        async def rewrite_forward_text(self, text, append_template="", custom_prompt=""):
+            raise RuntimeError("quota exceeded")
+
+    import core.ai
+
+    monkeypatch.setattr(core.ai, "AIService", FakeAIService)
+    service = EnhancedForwardService()
+    client = FakeClient(SimpleNamespace(media=None))
+    rewrite_options = {"enabled": True, "template": "{topic}", "prompt": ""}
+
+    ok = asyncio.run(service.copy_message_without_source(client, make_message(MessageSender(1)), 99, rewrite_options))
+
+    assert ok is False
+    assert client.sent == []
+    assert client.sent_files == []
+    assert "已阻止原文转发" in service.last_error
+
+
+def test_enhanced_forward_does_not_fallback_to_original_when_rewrite_fails(monkeypatch):
+    class FakeAIService:
+        async def rewrite_forward_text(self, text, append_template="", custom_prompt=""):
+            raise RuntimeError("api down")
+
+    import core.ai
+
+    monkeypatch.setattr(core.ai, "AIService", FakeAIService)
+    service = EnhancedForwardService()
+    client = FakeClient(SimpleNamespace(media=None))
+    account = SimpleNamespace(client=client)
+    rewrite_options = {"enabled": True, "template": "{topic}", "prompt": ""}
+
+    result = asyncio.run(service.forward_message_enhanced(
+        make_message(MessageSender(1)), account, [99], rewrite_options=rewrite_options
+    ))
+
+    assert result == {99: False}
+    assert client.sent == []
+    assert client.sent_files == []
+
+
 def test_album_rewrite_updates_first_caption_only(monkeypatch):
     class FakeAIService:
         async def rewrite_forward_text(self, text, append_template="", custom_prompt=""):
@@ -196,6 +241,26 @@ def test_album_rewrite_updates_first_caption_only(monkeypatch):
 
     assert ok is True
     assert client.sent_files == [(99, ["photo-1", "photo-2"], ["清理后的图集说明", ""])]
+
+
+def test_album_rewrite_blocks_original_caption_when_rewrite_fails(monkeypatch):
+    class FakeAIService:
+        async def rewrite_forward_text(self, text, append_template="", custom_prompt=""):
+            return {}
+
+    import core.ai
+
+    monkeypatch.setattr(core.ai, "AIService", FakeAIService)
+    service = EnhancedForwardService()
+    first = SimpleNamespace(id=10, grouped_id=555, media="photo-1", message="原始广告图集说明")
+    second = SimpleNamespace(id=11, grouped_id=555, media="photo-2", message="")
+    client = FakeClient(first, nearby_messages=[first, second])
+    rewrite_options = {"enabled": True, "template": "", "prompt": ""}
+
+    ok = asyncio.run(service.copy_message_without_source(client, make_album_message(grouped_id=555), 99, rewrite_options))
+
+    assert ok is False
+    assert client.sent_files == []
 
 
 def test_account_save_writes_valid_json_atomically(tmp_path):
@@ -222,3 +287,110 @@ def test_atomic_write_json_replaces_file_without_temp_leftover(tmp_path):
 
     assert read_json_file(target, {}) == {"version": 2}
     assert not target.with_suffix(".json.tmp").exists()
+
+
+def test_config_ignores_blank_optional_env(monkeypatch, tmp_path):
+    monkeypatch.setenv("TG_API_ID", "12345")
+    monkeypatch.setenv("TG_API_HASH", "a" * 32)
+    monkeypatch.setenv("OPENAI_MODEL", " ")
+    monkeypatch.setenv("OPENAI_BASE_URL", "")
+    monkeypatch.setenv("EMAIL_SMTP_PORT", "")
+    monkeypatch.setenv("WEB_PORT", "")
+    monkeypatch.setenv("WEB_USERNAME", "")
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("LOGS_DIR", str(tmp_path / "logs"))
+    monkeypatch.setenv("DOWNLOADS_DIR", str(tmp_path / "dl"))
+
+    cfg = Config()
+
+    assert cfg.OPENAI_MODEL == "gpt-3.5-turbo"
+    assert cfg.OPENAI_BASE_URL == "https://api.openai.com/v1"
+    assert cfg.EMAIL_SMTP_PORT == 587
+    assert cfg.WEB_PORT == 8000
+    assert cfg.WEB_USERNAME == "admin"
+
+
+def test_config_keeps_default_for_invalid_int_env(monkeypatch, tmp_path):
+    monkeypatch.setenv("TG_API_ID", "12345")
+    monkeypatch.setenv("TG_API_HASH", "a" * 32)
+    monkeypatch.setenv("WEB_PORT", "invalid")
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("LOGS_DIR", str(tmp_path / "logs"))
+    monkeypatch.setenv("DOWNLOADS_DIR", str(tmp_path / "dl"))
+
+    assert Config().WEB_PORT == 8000
+
+
+def test_account_config_defaults_session_under_data_sessions(monkeypatch, tmp_path):
+    monkeypatch.setattr(app_config, "DATA_DIR", str(tmp_path / "data"))
+
+    cfg = AccountConfig("+12025551234", 123, "a" * 32)
+
+    assert Path(cfg.session_name) == tmp_path / "data" / "sessions" / "session_12025551234"
+    assert Path(cfg.session_name).parent.exists()
+
+
+def test_account_manager_migrates_legacy_session_to_data_sessions(monkeypatch, tmp_path):
+    AccountManager.clear_instance()
+    data_dir = tmp_path / "data"
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(app_config, "DATA_DIR", str(data_dir))
+
+    data_dir.mkdir()
+    (tmp_path / "session_12025551234.session").write_text("legacy", encoding="utf-8")
+    atomic_write_json(data_dir / "account.json", {
+        "accounts": [{
+            "account_id": "+12025551234",
+            "config": {
+                "phone": "+12025551234",
+                "api_id": 123,
+                "api_hash": "a" * 32,
+                "proxy": None,
+                "session_name": "session_12025551234"
+            },
+            "own_user_id": 1,
+            "monitor_active": True,
+            "monitor_configs": {}
+        }]
+    })
+
+    manager = AccountManager()
+    session_name = manager.get_account("+12025551234").config.session_name
+
+    assert Path(session_name) == data_dir / "sessions" / "session_12025551234"
+    assert Path(f"{session_name}.session").read_text(encoding="utf-8") == "legacy"
+    assert not (tmp_path / "session_12025551234.session").exists()
+
+    AccountManager.clear_instance()
+
+
+def test_forward_store_keeps_latest_500_records(tmp_path):
+    store = ForwardStore(tmp_path / "forward.db")
+    message = make_message(MessageSender(1))
+
+    for index in range(505):
+        message.message_id = index
+        store.add("acc", message, 99, False, {})
+
+    rows = store.list(limit=600)
+
+    assert len(rows) == 500
+    assert rows[0]["source_message_id"] == 504
+    assert rows[-1]["source_message_id"] == 5
+
+
+def test_forward_store_marks_result_and_restores_message(tmp_path):
+    store = ForwardStore(tmp_path / "forward.db")
+    message = make_album_message(grouped_id=555)
+    record_id = store.add("acc", message, 99, True, {"enabled": True})
+
+    store.mark_result(record_id, False, "AI失败")
+    record = store.get(record_id)
+    restored = store.message_from_record(record)
+
+    assert record["status"] == "failed"
+    assert record["attempts"] == 1
+    assert record["last_error"] == "AI失败"
+    assert restored.message_id == message.message_id
+    assert restored.grouped_id == 555
+    assert store.rewrite_options(record) == {"enabled": True}

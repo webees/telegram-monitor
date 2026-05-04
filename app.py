@@ -5,23 +5,21 @@ Telegram监控系统 - Web应用启动器
 """
 
 import asyncio
-import uvicorn
-from pathlib import Path
 import logging
 import sys
 import argparse
+import importlib
 from typing import Optional
-from fastapi import Request
-
-from web.app import WebApp
-from web.status import StatusMonitor
-from core import AccountManager, MonitorEngine
-from core.log import get_logger
 
 
 class TelegramMonitorWebApp:
     
     def __init__(self, host: Optional[str] = None, port: Optional[int] = None, skip_config_check: bool = False):
+        from core import AccountManager, MonitorEngine
+        from core.log import get_logger
+        from web.app import WebApp
+        from web.status import StatusMonitor
+
         try:
             from core.config import config
             self.config = config
@@ -94,6 +92,8 @@ class TelegramMonitorWebApp:
 
     async def run_async(self):
         try:
+            import uvicorn
+
             self.logger.info("正在启动监控引擎...")
             await self.monitor_engine.start()
             self.logger.info("监控引擎启动完成")
@@ -166,6 +166,33 @@ def check_config_only():
         return False
 
 
+def check_imports_only():
+    modules = [
+        "uvicorn",
+        "fastapi",
+        "telethon",
+        "core.account",
+        "core.config",
+        "core.engine",
+        "core.forward",
+        "core.model",
+        "monitor.factory",
+        "web.app",
+        "web.wizard",
+    ]
+
+    ok = True
+    print("🔧 检查模块导入...")
+    for module in modules:
+        try:
+            importlib.import_module(module)
+            print(f"✅ {module}")
+        except Exception as e:
+            ok = False
+            print(f"❌ {module}: {e}")
+    return ok
+
+
 def main():
     parser = argparse.ArgumentParser(description="Telegram监控系统 Web界面")
     parser.add_argument("--host", help="绑定主机地址")
@@ -188,20 +215,7 @@ def main():
         logging.getLogger().setLevel(logging.INFO)
     
     if args.check_imports:
-        import subprocess
-        
-        print("🔧 检查模块导入...")
-        try:
-            result = subprocess.run([sys.executable, "简单启动检查.py"], 
-                                  capture_output=True, text=True, cwd=Path.cwd())
-            print(result.stdout)
-            if result.stderr:
-                print("错误信息:")
-                print(result.stderr)
-            sys.exit(result.returncode)
-        except FileNotFoundError:
-            print("❌ 未找到 简单启动检查.py 文件")
-            sys.exit(1)
+        sys.exit(0 if check_imports_only() else 1)
     
     if args.check_config:
         success = check_config_only()
@@ -236,4 +250,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

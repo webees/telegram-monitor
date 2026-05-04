@@ -328,8 +328,30 @@ class MonitorConfig:
 
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
+from pathlib import Path
 from telethon import TelegramClient
 import json
+import os
+
+
+def get_data_dir() -> Path:
+    try:
+        from .config import config
+        return Path(config.DATA_DIR)
+    except Exception:
+        return Path(os.getenv("DATA_DIR", "./data").strip() or "./data")
+
+
+def session_stem(phone: str) -> str:
+    return f"session_{phone.replace('+', '')}"
+
+
+def session_dir() -> Path:
+    return get_data_dir() / "sessions"
+
+
+def default_session_name(phone: str) -> str:
+    return str(session_dir() / session_stem(phone))
 
 
 @dataclass
@@ -342,7 +364,8 @@ class AccountConfig:
     
     def __post_init__(self):
         if not self.session_name:
-            self.session_name = f"session_{self.phone.replace('+', '')}"
+            self.session_name = default_session_name(self.phone)
+        Path(self.session_name).parent.mkdir(parents=True, exist_ok=True)
 
 
 @dataclass

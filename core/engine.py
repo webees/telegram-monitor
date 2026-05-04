@@ -590,34 +590,44 @@ class MonitorEngine(metaclass=Singleton):
                 target_ids = [tid for tid in actions['forward_targets'] if tid != message.chat_id]
 
                 if target_ids:
-                    if actions['enhanced_forward']:
-                        from .forward import EnhancedForwardService
-                        service = EnhancedForwardService()
-                        await service.forward_message_enhanced(
-                            message=message,
-                            account=account,
-                            target_ids=target_ids,
-                            rewrite_options=actions.get('forward_rewrite')
+                    from .forward import EnhancedForwardService
+                    from .forward_store import ForwardStore
+
+                    client = account.client
+                    service = EnhancedForwardService()
+                    store = ForwardStore()
+                    rewrite_options = actions.get('forward_rewrite')
+
+                    for target_id in target_ids:
+                        record_id = store.add(
+                            account.account_id,
+                            message,
+                            target_id,
+                            actions['enhanced_forward'],
+                            rewrite_options
                         )
-                        self.logger.info(f"增强转发消息到 {len(target_ids)} 个目标（去重后）")
-                    else:
-                        client = account.client
-                        from .forward import EnhancedForwardService
-                        service = EnhancedForwardService()
-                        for target_id in target_ids:
-                            try:
-                                success = await service.copy_message_without_source(
-                                    client,
-                                    message,
-                                    target_id,
-                                    actions.get('forward_rewrite')
+                        try:
+                            if actions['enhanced_forward']:
+                                result = await service.forward_message_enhanced(
+                                    message=message,
+                                    account=account,
+                                    target_ids=[target_id],
+                                    rewrite_options=rewrite_options
                                 )
-                                if success:
-                                    self.logger.info(f"无来源标记复制消息到: {target_id}")
-                                else:
-                                    self.logger.error(f"无来源标记复制消息到 {target_id} 失败")
-                            except Exception as e:
-                                self.logger.error(f"无来源标记复制消息到 {target_id} 失败: {e}")
+                                success = bool(result.get(target_id))
+                            else:
+                                success = await service.copy_message_without_source(
+                                    client, message, target_id, rewrite_options
+                                )
+
+                            store.mark_result(record_id, success, "" if success else service.last_error or "转发失败")
+                            if success:
+                                self.logger.info(f"无来源标记复制消息到: {target_id}")
+                            else:
+                                self.logger.error(f"无来源标记复制消息到 {target_id} 失败")
+                        except Exception as e:
+                            store.mark_result(record_id, False, str(e))
+                            self.logger.error(f"无来源标记复制消息到 {target_id} 失败: {e}")
 
             for log_file in actions['log_files']:
                 try:

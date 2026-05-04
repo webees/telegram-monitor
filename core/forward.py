@@ -16,12 +16,17 @@ from .singleton import Singleton
 from .log import get_logger
 
 
+class RewriteUnavailable(Exception):
+    """Raised when smart rewrite is required but cannot produce safe text."""
+
+
 class EnhancedForwardService(metaclass=Singleton):
     ALBUM_LOOKUP_WINDOW = 10
     
     def __init__(self):
         self.logger = get_logger(__name__)
         self.temp_downloads: Dict[str, str] = {}
+        self.last_error = ""
         
     async def forward_message_enhanced(
         self,
@@ -36,8 +41,11 @@ class EnhancedForwardService(metaclass=Singleton):
         client = account.client
         
         for target_id in target_ids:
+            self.last_error = ""
             try:
-                success = await self.copy_message_without_source(client, message, target_id, rewrite_options)
+                success = await self.copy_message_without_source(
+                    client, message, target_id, rewrite_options, raise_on_rewrite_failure=True
+                )
                 if success:
                     results[target_id] = True
                     self.logger.info(f"无来源标记复制成功到 {target_id}")
@@ -49,6 +57,7 @@ class EnhancedForwardService(metaclass=Singleton):
                 results[target_id] = success
                 
             except Exception as e:
+                self.last_error = str(e)
                 self.logger.error(f"转发到 {target_id} 时出错: {e}")
                 results[target_id] = False
         
@@ -59,8 +68,10 @@ class EnhancedForwardService(metaclass=Singleton):
         client: TelegramClient, 
         message: TelegramMessage, 
         target_id: int,
-        rewrite_options: Optional[Dict[str, str]] = None
+        rewrite_options: Optional[Dict[str, str]] = None,
+        raise_on_rewrite_failure: bool = False
     ) -> bool:
+        self.last_error = ""
         try:
             original_message = await client.get_messages(message.chat_id, ids=message.message_id)
             if not original_message:
@@ -75,7 +86,7 @@ class EnhancedForwardService(metaclass=Singleton):
                     return True
 
             rewritten_text = await self._rewrite_text_if_enabled(message.text, rewrite_options)
-            if rewritten_text and rewritten_text != message.text:
+            if rewritten_text is not None:
                 if getattr(original_message, 'media', None):
                     await client.send_file(target_id, original_message.media, caption=rewritten_text)
                 else:
@@ -86,14 +97,23 @@ class EnhancedForwardService(metaclass=Singleton):
             await client.send_message(target_id, original_message)
             return True
             
+        except RewriteUnavailable as e:
+            self.last_error = f"智能改写失败，已阻止原文转发: {e}"
+            self.logger.error(f"智能改写失败，跳过转发到 {target_id}: {e}")
+            if raise_on_rewrite_failure:
+                raise
+            return False
         except (ChatForwardsRestrictedError, MediaEmptyError) as e:
+            self.last_error = str(e)
             self.logger.info(f"复制消息到 {target_id} 受限制: {e}")
             return False
         except FloodWaitError as e:
+            self.last_error = f"频率限制，等待 {e.seconds} 秒"
             self.logger.warning(f"复制消息频率限制，等待 {e.seconds} 秒")
             await asyncio.sleep(e.seconds)
             return False
         except Exception as e:
+            self.last_error = str(e)
             self.logger.error(f"复制消息失败: {e}")
             return False
 
@@ -139,7 +159,7 @@ class EnhancedForwardService(metaclass=Singleton):
 
         first_caption = next((caption for caption in captions if caption), "")
         rewritten_text = await self._rewrite_text_if_enabled(first_caption, rewrite_options)
-        if rewritten_text:
+        if rewritten_text is not None:
             captions = [rewritten_text] + [""] * (len(files) - 1)
 
         await client.send_file(target_id, files, caption=captions)
@@ -161,10 +181,11 @@ class EnhancedForwardService(metaclass=Singleton):
             if result and result.get("final_text"):
                 self.logger.info(f"转发智能改写完成，主题: {result.get('topic', '未知')}")
                 return result["final_text"]
+            raise RewriteUnavailable("AI未返回有效改写内容")
         except Exception as e:
-            self.logger.error(f"转发智能改写失败，使用原文转发: {e}")
-
-        return None
+            if isinstance(e, RewriteUnavailable):
+                raise
+            raise RewriteUnavailable(str(e)) from e
     
     async def _download_resend(
         self,
@@ -192,6 +213,7 @@ class EnhancedForwardService(metaclass=Singleton):
                 return await self._send_text(client, message, target_id, rewrite_options)
                 
         except Exception as e:
+            self.last_error = str(e)
             self.logger.error(f"下载重发失败: {e}")
             return False
     
@@ -220,13 +242,16 @@ class EnhancedForwardService(metaclass=Singleton):
                 self.logger.error("文件下载失败")
                 return False
             
-            caption = await self._rewrite_text_if_enabled(message.text, rewrite_options) or message.text or None
+            caption = await self._rewrite_text_if_enabled(message.text, rewrite_options)
+            if caption is None:
+                caption = message.text or None
             await client.send_file(target_id, downloaded_path, caption=caption)
             
             self.logger.info(f"文件重发成功到 {target_id}: {file_name}")
             return True
             
         except Exception as e:
+            self.last_error = str(e)
             self.logger.error(f"下载媒体文件失败: {e}")
             return False
         finally:
@@ -242,13 +267,16 @@ class EnhancedForwardService(metaclass=Singleton):
     ) -> bool:
         try:
             if message.text:
-                text = await self._rewrite_text_if_enabled(message.text, rewrite_options) or message.text
+                text = await self._rewrite_text_if_enabled(message.text, rewrite_options)
+                if text is None:
+                    text = message.text
                 await client.send_message(target_id, text)
                 self.logger.info(f"文本消息重发成功到 {target_id}")
                 return True
             return False
             
         except Exception as e:
+            self.last_error = str(e)
             self.logger.error(f"发送文本消息失败: {e}")
             return False
     

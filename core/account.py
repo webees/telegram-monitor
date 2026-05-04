@@ -12,7 +12,7 @@ from typing import Dict, Optional, List
 from telethon import TelegramClient, events
 from telethon.errors import SessionPasswordNeededError
 
-from .model import Account, AccountConfig
+from .model import Account, AccountConfig, get_data_dir, session_stem
 from .singleton import Singleton
 from .log import get_logger
 from .storage import atomic_write_json, read_json_file
@@ -25,8 +25,11 @@ class AccountManager(metaclass=Singleton):
         self.current_account_id: Optional[str] = None
         self.blocked_bots: set = set()
         self.logger = get_logger(__name__)
-        self.accounts_file = Path("data/account.json")
+        self.data_dir = get_data_dir()
+        self.sessions_dir = self.data_dir / "sessions"
+        self.accounts_file = self.data_dir / "account.json"
         self._save_lock = threading.Lock()
+        self.sessions_dir.mkdir(parents=True, exist_ok=True)
         
         self._load_accounts()
     
@@ -37,16 +40,19 @@ class AccountManager(metaclass=Singleton):
         
         try:
             data = read_json_file(self.accounts_file, {'accounts': []})
+            changed = False
             
             for account_data in data.get('accounts', []):
                 try:
+                    raw_config = account_data['config']
                     config = AccountConfig(
-                        phone=account_data['config']['phone'],
-                        api_id=account_data['config']['api_id'],
-                        api_hash=account_data['config']['api_hash'],
-                        proxy=account_data['config'].get('proxy'),
-                        session_name=account_data['config'].get('session_name', account_data['config']['phone'])
+                        phone=raw_config['phone'],
+                        api_id=raw_config['api_id'],
+                        api_hash=raw_config['api_hash'],
+                        proxy=raw_config.get('proxy'),
+                        session_name=raw_config.get('session_name', '')
                     )
+                    changed = self._normalize_session_config(config, raw_config.get('session_name')) or changed
                     
                     account = Account(
                         account_id=account_data['account_id'],
@@ -68,9 +74,39 @@ class AccountManager(metaclass=Singleton):
             
             if self.accounts and not self.current_account_id:
                 self.current_account_id = next(iter(self.accounts.keys()))
+
+            if changed:
+                self._save_accounts()
                 
         except Exception as e:
             self.logger.error(f"加载账号文件失败: {e}")
+
+    def _normalize_session_config(self, config: AccountConfig, old_name: Optional[str] = None) -> bool:
+        old_candidates = {item for item in (old_name, config.phone, session_stem(config.phone)) if item}
+        current_path = Path(config.session_name)
+
+        if not current_path.is_absolute() and current_path.parent == Path("."):
+            config.session_name = str(self.sessions_dir / current_path.name)
+
+        Path(config.session_name).parent.mkdir(parents=True, exist_ok=True)
+        self._migrate_session_files(old_candidates, config.session_name)
+        return old_name != config.session_name
+
+    def _migrate_session_files(self, old_names: set, new_name: str):
+        new_path = Path(new_name)
+        for suffix in (".session", ".session-journal"):
+            target = Path(f"{new_path}{suffix}")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            for old_name in old_names:
+                source = Path(f"{old_name}{suffix}")
+                if source == target or not source.exists() or target.exists():
+                    continue
+                try:
+                    source.replace(target)
+                    self.logger.info(f"已迁移session文件: {source} -> {target}")
+                    break
+                except Exception as e:
+                    self.logger.warning(f"迁移session文件失败 {source}: {e}")
     
     def _save_accounts(self):
         try:
@@ -133,6 +169,7 @@ class AccountManager(metaclass=Singleton):
     
     def add_account(self, account: Account) -> bool:
         try:
+            self._normalize_session_config(account.config, account.config.session_name)
             existing_account = self.accounts.get(account.account_id)
             if existing_account:
                 account.monitor_configs = existing_account.monitor_configs

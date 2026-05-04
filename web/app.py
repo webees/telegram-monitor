@@ -22,6 +22,7 @@ from pydantic import BaseModel
 
 from core import AccountManager, MonitorEngine
 from core.account import AccountFactory
+from core.forward_store import ForwardStore
 from core.model import Account, AccountConfig
 from core.model import KeywordConfig, FileConfig, AIMonitorConfig, MatchType, ScheduledMessageConfig
 from monitor import monitor_factory, AIMonitorBuilder
@@ -117,6 +118,7 @@ class WebApp:
         
         self.account_manager = AccountManager()
         self.monitor_engine = MonitorEngine()
+        self.forward_store = ForwardStore()
         self.status_monitor = StatusMonitor()
         self.config_wizard = ConfigWizard()
         self.logger = get_logger(__name__)
@@ -285,6 +287,15 @@ class WebApp:
             return self.templates.TemplateResponse(request, "monitors.html", {
                 "request": request,
                 "title": "监控器管理",
+                "user": user
+            })
+
+        @self.app.get("/forwards", response_class=HTMLResponse)
+        async def forwards_page(request: Request):
+            user = self.get_current_user(request)
+            return self.templates.TemplateResponse(request, "forwards.html", {
+                "request": request,
+                "title": "转发列表",
                 "user": user
             })
         
@@ -713,6 +724,61 @@ class WebApp:
             except Exception as e:
                 self.logger.error(f"切换监控器状态失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
+
+        @self.app.get("/api/forwards")
+        async def list_forwards(request: Request, status: Optional[str] = None, limit: int = 100):
+            user = self.get_current_user(request)
+            return {
+                "success": True,
+                "records": self.forward_store.list(limit=limit, status=status)
+            }
+
+        @self.app.post("/api/forwards/{record_id}/retry")
+        async def retry_forward(request: Request, record_id: int):
+            user = self.get_current_user(request)
+            record = self.forward_store.get(record_id)
+            if not record:
+                raise HTTPException(status_code=404, detail="转发记录不存在")
+
+            account = self.account_manager.get_account(record["account_id"])
+            if not account:
+                self.forward_store.mark_result(record_id, False, "账号不存在")
+                return {"success": False, "message": "账号不存在"}
+
+            if not account.client or not account.client.is_connected():
+                if not await self.account_manager.connect_account(account.account_id):
+                    self.forward_store.mark_result(record_id, False, "账号未连接或未授权")
+                    return {"success": False, "message": "账号未连接或未授权"}
+                account = self.account_manager.get_account(account.account_id)
+
+            try:
+                from core.forward import EnhancedForwardService
+
+                service = EnhancedForwardService()
+                message = self.forward_store.message_from_record(record)
+                rewrite_options = self.forward_store.rewrite_options(record)
+                if record["enhanced_forward"]:
+                    result = await service.forward_message_enhanced(
+                        message=message,
+                        account=account,
+                        target_ids=[record["target_id"]],
+                        rewrite_options=rewrite_options
+                    )
+                    success = bool(result.get(record["target_id"]))
+                else:
+                    success = await service.copy_message_without_source(
+                        account.client,
+                        message,
+                        record["target_id"],
+                        rewrite_options
+                    )
+
+                self.forward_store.mark_result(record_id, success, "" if success else service.last_error or "重试失败")
+                return {"success": success, "message": "重试成功" if success else "重试失败"}
+            except Exception as e:
+                self.forward_store.mark_result(record_id, False, str(e))
+                self.logger.error(f"重试转发记录 {record_id} 失败: {e}")
+                return {"success": False, "message": f"重试失败: {e}"}
         
         @self.app.post("/api/wizard/start")
         async def start_wizard(request: Request, data: Dict[str, Any]):
