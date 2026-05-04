@@ -220,6 +220,22 @@
         margin-top: 6px;
     }
 
+    .help-examples {
+        margin-top: 8px;
+        padding: 10px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    .help-examples code {
+        color: var(--text-primary);
+        white-space: pre-wrap;
+    }
+
     .form-error {
         font-size: 12px;
         color: var(--danger-color);
@@ -1071,22 +1087,49 @@
 
                 <div class="form-group" id="forward-config" style="display: none;">
                     <label class="form-label">转发目标ID</label>
-                    <input type="text" class="form-input" name="forward_target_id" placeholder="输入群组或频道ID（多个用逗号分隔）">
-                    <div class="form-help">输入要转发到的群组或频道ID，如：-1001234567890,-1009876543210</div>
+                    <input type="text" class="form-input" name="forward_target_id" placeholder="-1001234567890,-1009876543210">
+                    <div class="form-help">填目标群或频道ID，不是群名称。多个目标用英文逗号分隔。</div>
+                    <div class="help-examples">
+                        单个目标：<code>-1001234567890</code><br>
+                        多个目标：<code>-1001234567890,-1009876543210</code>
+                    </div>
 
                     <label class="form-label field-spacer">
                         <input type="checkbox" name="forward_rewrite_enabled" id="forward_rewrite_enabled">
                         启用智能改写
                     </label>
-                    <div class="form-help">转发前调用AI清理广告并识别主题</div>
+                    <div class="form-help">转发前调用AI清理广告并识别主题。AI失败时不会发原文，会进入转发列表等待重试。</div>
 
                     <div id="forward-rewrite-config" class="nested-config" style="display: none;">
                         <label class="form-label">追加内容模板</label>
-                        <textarea class="form-input" name="forward_rewrite_template" rows="3" placeholder="例如：更多{topic}资讯请关注我的频道"></textarea>
-                        <div class="form-help">支持变量：{topic} 主题，{clean_text} 清理后的正文</div>
+                        <textarea class="form-input" name="forward_rewrite_template" rows="5" placeholder="{clean_text}&#10;&#10;更多{topic}资讯，请关注 @your_channel"></textarea>
+                        <div class="form-help">
+                            这里写“最终要发出去的文案模板”。想保留新闻正文，必须写 <code>{clean_text}</code>。
+                            <code>{topic}</code> 是AI识别的主题，<code>{clean_text}</code> 是AI清理广告后的正文。
+                        </div>
+                        <div class="help-examples">
+                            例1，正文后加频道：<br>
+                            <code>{clean_text}
+
+更多{topic}资讯，请关注 @your_channel</code><br><br>
+                            例2，只发清理后正文和固定落款：<br>
+                            <code>{clean_text}
+
+整理发布：我的频道</code><br><br>
+                            例3，新闻摘要口吻：<br>
+                            <code>{clean_text}
+
+关注我们，获取更多{topic}消息。</code>
+                        </div>
 
                         <label class="form-label field-spacer">自定义清理规则</label>
-                        <textarea class="form-input" name="forward_rewrite_prompt" rows="3" placeholder="留空则使用默认广告清理规则"></textarea>
+                        <textarea class="form-input" name="forward_rewrite_prompt" rows="4" placeholder="删除原文里的广告、联系方式、链接、邀请进群话术；保留新闻事实、时间、地点、数字和人名。"></textarea>
+                        <div class="form-help">这里写“怎么清理原文”，不是追加广告的位置。留空会使用默认清理规则。</div>
+                        <div class="help-examples">
+                            例1：<code>删除广告、推广链接、联系方式，只保留新闻正文。</code><br>
+                            例2：<code>保留时间、地点、人名、公司名、金额、数字；删除无关表情和营销话术。</code><br>
+                            例3：<code>把内容整理成简洁中文，不要添加原文没有的信息。</code>
+                        </div>
                     </div>
                 </div>
 
@@ -1303,28 +1346,42 @@
         updateWizardUI();
     }
 
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[c]));
+    }
+
+    function escapeAttr(value) {
+        return escapeHtml(value).replace(/\n/g, '&#10;');
+    }
+
     function renderField(field) {
         const display = field.show === false ? ' style="display: none;"' : '';
-        let html = `<div class="form-group" id="field-${field.name}"${display}>`;
+        let html = `<div class="form-group" id="field-${escapeAttr(field.name)}"${display}>`;
 
         const currentValue = field.value !== undefined ? field.value :
                            (isEditMode && editConfig[field.name] !== undefined ? editConfig[field.name] : '');
 
         if (field.type !== 'checkbox' && field.label) {
-            html += `<label class="form-label${field.required ? ' required' : ''}">${field.label}</label>`;
+            html += `<label class="form-label${field.required ? ' required' : ''}">${escapeHtml(field.label)}</label>`;
         }
 
         switch (field.type) {
             case 'text':
             case 'email':
-                html += `<input type="${field.type}" class="form-input" name="${field.name}"
-                         value="${currentValue}"
-                         placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''}>`;
+                html += `<input type="${escapeAttr(field.type)}" class="form-input" name="${escapeAttr(field.name)}"
+                         value="${escapeAttr(currentValue)}"
+                         placeholder="${escapeAttr(field.placeholder || '')}" ${field.required ? 'required' : ''}>`;
                 break;
 
             case 'textarea':
-                html += `<textarea class="form-input" name="${field.name}" rows="${field.rows || 3}"
-                         placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''}>${currentValue}</textarea>`;
+                html += `<textarea class="form-input" name="${escapeAttr(field.name)}" rows="${field.rows || 3}"
+                         placeholder="${escapeAttr(field.placeholder || '')}" ${field.required ? 'required' : ''}>${escapeHtml(currentValue)}</textarea>`;
 
                 if (field.name === 'email_addresses' && (!currentValue || currentValue.trim() === '')) {
                     setTimeout(() => loadDefaultEmailForField(field.name), 100);
@@ -1332,11 +1389,11 @@
                 break;
 
             case 'select':
-                html += `<select class="form-input" name="${field.name}" ${field.required ? 'required' : ''} ${field.multiple ? 'multiple' : ''}>`;
+                html += `<select class="form-input" name="${escapeAttr(field.name)}" ${field.required ? 'required' : ''} ${field.multiple ? 'multiple' : ''}>`;
                 if (field.options) {
                     field.options.forEach(option => {
                         const selected = currentValue == option.value ? ' selected' : '';
-                        html += `<option value="${option.value}"${selected}>${option.label}</option>`;
+                        html += `<option value="${escapeAttr(option.value)}"${selected}>${escapeHtml(option.label)}</option>`;
                     });
                 }
                 html += '</select>';
@@ -1349,12 +1406,12 @@
                         const checked = currentValue == option.value ? ' checked' : '';
                         html += `
                             <label class="form-radio">
-                                <input type="radio" name="${field.name}"
-                                       value="${option.value}" id="${field.name}_${option.value}"
+                                <input type="radio" name="${escapeAttr(field.name)}"
+                                       value="${escapeAttr(option.value)}" id="${escapeAttr(field.name)}_${escapeAttr(option.value)}"
                                        ${checked} ${field.required ? 'required' : ''}>
                                 <div class="form-radio-label">
-                                    <div class="form-radio-title">${option.label}</div>
-                                    ${option.description ? `<div class="form-radio-description">${option.description}</div>` : ''}
+                                    <div class="form-radio-title">${escapeHtml(option.label)}</div>
+                                    ${option.description ? `<div class="form-radio-description">${escapeHtml(option.description)}</div>` : ''}
                                 </div>
                             </label>
                         `;
@@ -1368,18 +1425,18 @@
                                 currentValue === 'on' || (field.default && currentValue === '');
                 html += `
                     <label class="form-label">
-                        <input type="checkbox" name="${field.name}"
-                               id="${field.name}" ${isChecked ? 'checked' : ''}>
-                        ${field.label}
+                        <input type="checkbox" name="${escapeAttr(field.name)}"
+                               id="${escapeAttr(field.name)}" ${isChecked ? 'checked' : ''}>
+                        ${escapeHtml(field.label)}
                     </label>
                 `;
                 break;
 
             case 'number':
-                html += `<input type="number" class="form-input" name="${field.name}"
-                         value="${currentValue}"
-                         min="${field.min || ''}" max="${field.max || ''}"
-                         placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''}>`;
+                html += `<input type="number" class="form-input" name="${escapeAttr(field.name)}"
+                         value="${escapeAttr(currentValue)}"
+                         min="${escapeAttr(field.min || '')}" max="${escapeAttr(field.max || '')}"
+                         placeholder="${escapeAttr(field.placeholder || '')}" ${field.required ? 'required' : ''}>`;
                 break;
 
             case 'range':
@@ -1389,18 +1446,24 @@
                         <input type="range" class="form-range" name="${field.name}"
                                min="${field.min}" max="${field.max}" step="${field.step || 1}"
                                value="${rangeValue}" oninput="updateRangeValue('${field.name}', this.value)" style="flex: 1;">
-                        <span id="${field.name}_value" style="min-width: 50px; text-align: right;">${rangeValue}</span>
+                        <span id="${field.name}_value" style="min-width: 50px; text-align: right;">${escapeHtml(rangeValue)}</span>
                     </div>
                 `;
                 break;
 
             case 'readonly':
-                html += `<div class="form-control-plaintext" style="padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-md);">${field.value}</div>`;
+                html += `<div class="form-control-plaintext" style="padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-md);">${escapeHtml(field.value)}</div>`;
                 break;
         }
 
         if (field.help) {
-            html += `<div class="form-help">${field.help}</div>`;
+            html += `<div class="form-help">${escapeHtml(field.help)}</div>`;
+        }
+
+        if (field.examples && field.examples.length) {
+            html += `<div class="help-examples">${field.examples.map((example, index) =>
+                `例${index + 1}：<code>${escapeHtml(example)}</code>`
+            ).join('<br>')}</div>`;
         }
 
         html += '</div>';

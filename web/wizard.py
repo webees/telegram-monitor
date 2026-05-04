@@ -845,8 +845,12 @@ class ConfigWizard(metaclass=Singleton):
                         "type": "text",
                         "label": "转发目标",
                         "required": True,
-                        "placeholder": "目标群组ID，多个用逗号分隔",
-                        "help": "输入要转发到的群组ID，多个目标用逗号分隔"
+                        "placeholder": "-1001234567890,-1009876543210",
+                        "help": "填目标群或频道ID，不填名字。多个目标用英文逗号分隔。",
+                        "examples": [
+                            "-1001234567890",
+                            "-1001234567890,-1009876543210"
+                        ]
                     },
                     {
                         "name": "enhanced_forward",
@@ -870,7 +874,7 @@ class ConfigWizard(metaclass=Singleton):
                         "label": "启用智能改写",
                         "required": False,
                         "default": False,
-                        "help": "转发前调用AI清理广告并识别新闻主题"
+                        "help": "开启后会先让AI清理广告、识别主题，再转发。AI失败时不会发原文，会进入转发列表等待重试。"
                     },
                     {
                         "name": "forward_rewrite_template",
@@ -878,8 +882,13 @@ class ConfigWizard(metaclass=Singleton):
                         "label": "追加内容模板",
                         "required": False,
                         "rows": 3,
-                        "placeholder": "例如：更多{topic}资讯请关注我的频道",
-                        "help": "支持变量：{topic} 主题，{clean_text} 清理后的正文",
+                        "placeholder": "{clean_text}\n\n更多{topic}资讯，请关注 @your_channel",
+                        "help": "这是最终转发文案模板。{clean_text}=AI清理后的正文，{topic}=AI识别的主题。想保留新闻正文就必须写 {clean_text}。",
+                        "examples": [
+                            "{clean_text}\n\n更多{topic}资讯，请关注 @your_channel",
+                            "{clean_text}\n\n整理发布：我的频道",
+                            "{clean_text}\n\n关注我们，获取更多{topic}消息。"
+                        ],
                         "conditional": {"forward_rewrite_enabled": True}
                     },
                     {
@@ -888,7 +897,13 @@ class ConfigWizard(metaclass=Singleton):
                         "label": "自定义清理规则",
                         "required": False,
                         "rows": 3,
-                        "placeholder": "留空则使用默认广告清理规则",
+                        "placeholder": "例：删除原文里的广告、联系方式、链接、邀请进群话术；保留新闻事实、时间、地点、数字和人名。",
+                        "help": "告诉AI怎么清理原文。不会作为追加内容发送。留空会使用默认广告清理规则。",
+                        "examples": [
+                            "删除广告、推广链接、联系方式，只保留新闻正文。",
+                            "保留时间、地点、人名、公司名、金额、数字；删除无关表情和营销话术。",
+                            "把内容整理成简洁中文，不要添加原文没有的信息。"
+                        ],
                         "conditional": {"forward_rewrite_enabled": True}
                     }
                 ],
