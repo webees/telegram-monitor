@@ -7,6 +7,7 @@ import json
 import logging
 import asyncio
 import socks
+import threading
 from pathlib import Path
 from typing import Dict, Optional, List
 from telethon import TelegramClient, events
@@ -25,6 +26,7 @@ class AccountManager(metaclass=Singleton):
         self.blocked_bots: set = set()
         self.logger = get_logger(__name__)
         self.accounts_file = Path("data/account.json")
+        self._save_lock = threading.Lock()
         
         self._load_accounts()
     
@@ -92,17 +94,15 @@ class AccountManager(metaclass=Singleton):
                 }
                 accounts_data.append(account_data)
             
-            import threading
-            
-            def _write_file():
-                try:
-                    with open(self.accounts_file, 'w', encoding='utf-8') as f:
-                        json.dump({'accounts': accounts_data}, f, indent=2, ensure_ascii=False)
-                    self.logger.info(f"已保存 {len(accounts_data)} 个账号")
-                except Exception as e:
-                    self.logger.error(f"写入账号文件失败: {e}")
-            
-            threading.Thread(target=_write_file, daemon=True).start()
+            temp_file = self.accounts_file.with_suffix(f"{self.accounts_file.suffix}.tmp")
+            payload = {'accounts': accounts_data}
+
+            with self._save_lock:
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    json.dump(payload, f, indent=2, ensure_ascii=False)
+                temp_file.replace(self.accounts_file)
+
+            self.logger.info(f"已保存 {len(accounts_data)} 个账号")
             
         except Exception as e:
             self.logger.error(f"序列化账号文件失败: {e}")
@@ -175,7 +175,7 @@ class AccountManager(metaclass=Singleton):
             account = self.accounts[account_id]
             
             if account.client and account.client.is_connected():
-                asyncio.create_task(account.client.disconnect())
+                self._disconnect_later(account.client)
             
             session_file = Path(f"{account.config.session_name}.session")
             if session_file.exists():
@@ -205,6 +205,16 @@ class AccountManager(metaclass=Singleton):
         except Exception as e:
             self.logger.error(f"移除账号失败: {e}")
             return False
+
+    def _disconnect_later(self, client):
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(client.disconnect())
+        except RuntimeError:
+            try:
+                asyncio.run(client.disconnect())
+            except Exception as e:
+                self.logger.warning(f"断开账号连接失败: {e}")
     
     def get_account(self, account_id: str) -> Optional[Account]:
         return self.accounts.get(account_id)

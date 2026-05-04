@@ -3,6 +3,8 @@
 检测图片和按钮内容，发送给AI分析，根据AI结果点击按钮
 """
 import asyncio
+import os
+import shutil
 from typing import List, Optional, Dict, Any
 from core.model import MessageEvent, Account
 from core.model import ImageButtonConfig
@@ -21,6 +23,16 @@ class ImageButtonMonitor(BaseMonitor):
         import base64
         with open(photo_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode("utf-8")
+
+    def _cleanup_file(self, file_path: Optional[str]):
+        if not file_path:
+            return
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                self.logger.debug(f"[图片处理] 已删除临时文件: {file_path}")
+        except Exception as cleanup_error:
+            self.logger.warning(f"[图片处理] 删除临时文件失败: {cleanup_error}")
     
     async def _match(self, message_event: MessageEvent, account: Account) -> bool:
         message = message_event.message
@@ -92,11 +104,10 @@ class ImageButtonMonitor(BaseMonitor):
                         has_image = True
                         self.logger.info(f"[图片+按钮] 检测到图片，准备下载")
                         
+                        photo_path = None
                         try:
                             photo_path = await original_message.download_media()
                             if photo_path:
-                                import os
-                                import shutil
                                 import base64
                                 
                                 base, ext = os.path.splitext(photo_path)
@@ -109,15 +120,13 @@ class ImageButtonMonitor(BaseMonitor):
                                     image_base64 = base64.b64encode(image_file.read()).decode("utf-8")
                                 
                                 self.logger.info(f"[图片+按钮] ✅ 成功下载并编码图片: {photo_path}")
-                                
-                                if os.path.exists(photo_path):
-                                    os.remove(photo_path)
-                                    self.logger.debug(f"[图片+按钮] 已删除临时文件: {photo_path}")
                                     
                             else:
                                 self.logger.error(f"[图片+按钮] ❌ 图片下载失败")
                         except Exception as download_error:
                             self.logger.error(f"[图片+按钮] ❌ 下载图片失败: {download_error}")
+                        finally:
+                            self._cleanup_file(photo_path)
                     else:
                         self.logger.info(f"[图片+按钮] 原始消息无图片内容")
                 else:
@@ -203,28 +212,21 @@ class ImageButtonMonitor(BaseMonitor):
             content['buttons'] = self._button_info(message.buttons)
         
         if message.media and message.media.has_media:
-            has_media_image = False
-            if hasattr(message.media, 'photo') and message.media.photo:
-                has_media_image = True
-            elif (hasattr(message.media, 'document') and 
-                  message.media.document and 
-                  hasattr(message.media.document, 'mime_type') and
-                  message.media.document.mime_type and
-                  'image' in message.media.document.mime_type):
-                has_media_image = True
+            media_type = (message.media.media_type or '').lower()
+            mime_type = (message.media.mime_type or '').lower()
+            has_media_image = media_type in {'photo', 'image'} or mime_type.startswith('image/')
             
             if has_media_image:
                 content['has_image'] = True
                 content['image_description'] = '检测到图片，准备下载分析'
                 
                 if self.image_button_config.download_images:
+                    photo_path = None
                     try:
                         original_message = await account.client.get_messages(message.chat_id, ids=message.message_id)
                         if original_message:
                             photo_path = await original_message.download_media()
                             if photo_path:
-                                import os
-                                import shutil
                                 base, ext = os.path.splitext(photo_path)
                                 if ext.lower() != '.jpg':
                                     new_image_path = base + '.jpg'
@@ -239,13 +241,6 @@ class ImageButtonMonitor(BaseMonitor):
                                         base64_image = base64.b64encode(image_file.read()).decode("utf-8")
                                     content['image_base64'] = base64_image
                                     self.logger.info(f"[图片处理] 成功下载并编码图片: {photo_path}")
-                                    
-                                    try:
-                                        if os.path.exists(photo_path):
-                                            os.remove(photo_path)
-                                            self.logger.debug(f"[图片处理] 已删除临时图片文件: {photo_path}")
-                                    except Exception as cleanup_error:
-                                        self.logger.warning(f"[图片处理] 删除临时文件失败: {cleanup_error}")
                                         
                                 except Exception as encode_error:
                                     self.logger.error(f"[图片处理] base64编码失败: {encode_error}")
@@ -256,6 +251,8 @@ class ImageButtonMonitor(BaseMonitor):
                             
                     except Exception as e:
                         self.logger.error(f"[图片处理] 下载图片失败: {e}")
+                    finally:
+                        self._cleanup_file(photo_path)
         
         return content
     

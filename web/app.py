@@ -122,6 +122,7 @@ class WebApp:
         self.logger = get_logger(__name__)
         
         self.websocket_connections: List[WebSocket] = []
+        self._status_task: Optional[asyncio.Task] = None
         
         self.pending_accounts: Dict[str, Dict[str, Any]] = {}
         
@@ -941,7 +942,8 @@ class WebApp:
         @self.app.websocket("/ws")
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            self.websocket_connections.append(websocket)
+            if websocket not in self.websocket_connections:
+                self.websocket_connections.append(websocket)
             
             try:
                 stats = await self.get_system_stats()
@@ -1616,13 +1618,14 @@ class WebApp:
                     )
                 else:
                     temp_content = f"# TG监控系统日志文件\n# 生成时间: {datetime.now()}\n\n暂无日志记录。\n"
-                    temp_file = Path(f"temp_logs_{datetime.now().timestamp()}.log")
-                    temp_file.write_text(temp_content, encoding='utf-8')
-                    
-                    return FileResponse(
-                        path=str(temp_file),
-                        filename=f"tg_monitor_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log",
-                        media_type="text/plain"
+                    return StreamingResponse(
+                        io.BytesIO(temp_content.encode('utf-8')),
+                        media_type="text/plain",
+                        headers={
+                            "Content-Disposition": (
+                                f"attachment; filename=tg_monitor_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+                            )
+                        }
                     )
                     
             except Exception as e:
@@ -2319,6 +2322,10 @@ class WebApp:
                 self.websocket_connections.remove(websocket)
     
     async def start_background_tasks(self):
+        if self._status_task and not self._status_task.done():
+            self.logger.debug("状态更新后台任务已存在，跳过重复启动")
+            return
+
         async def status_updater():
             while True:
                 try:
@@ -2327,7 +2334,7 @@ class WebApp:
                 except Exception as e:
                     self.logger.error(f"状态更新错误: {e}")
         
-        asyncio.create_task(status_updater())
+        self._status_task = asyncio.create_task(status_updater())
     
     def get_app(self) -> FastAPI:
         return self.app 

@@ -9,7 +9,7 @@
 """
 
 from typing import Optional, List, Dict, Any, Union
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields, is_dataclass
 from enum import Enum
 
 
@@ -244,11 +244,70 @@ class MonitorConfig:
         return self.file_configs.get(extension)
     
     def to_dict(self) -> Dict[str, Any]:
-        pass
+        def plain(value):
+            if isinstance(value, Enum):
+                return value.value
+            if is_dataclass(value):
+                return plain({
+                    item.name: getattr(value, item.name)
+                    for item in fields(value)
+                })
+            if isinstance(value, list):
+                return [plain(item) for item in value]
+            if isinstance(value, dict):
+                return {str(key): plain(item) for key, item in value.items()}
+            return value
+
+        return {
+            "keyword_configs": plain(self.keyword_configs),
+            "file_configs": plain(self.file_configs),
+            "button_configs": plain(self.button_configs),
+            "all_message_configs": plain(self.all_message_configs),
+            "ai_monitor_configs": plain(self.ai_monitor_configs),
+            "image_button_configs": plain(self.image_button_configs),
+            "scheduled_message_configs": plain(self.scheduled_message_configs),
+            "channel_in_group_configs": plain(self.channel_in_group_configs),
+        }
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'MonitorConfig':
-        pass 
+        def build(config_cls, payload):
+            if not isinstance(payload, dict):
+                return config_cls()
+            allowed = {item.name for item in fields(config_cls)}
+            return config_cls(**{key: value for key, value in payload.items() if key in allowed})
+
+        return cls(
+            keyword_configs={
+                key: build(KeywordConfig, value)
+                for key, value in data.get("keyword_configs", {}).items()
+            },
+            file_configs={
+                key: build(FileConfig, value)
+                for key, value in data.get("file_configs", {}).items()
+            },
+            button_configs={
+                key: build(ButtonConfig, value)
+                for key, value in data.get("button_configs", {}).items()
+            },
+            all_message_configs={
+                int(key): build(AllMessagesConfig, value)
+                for key, value in data.get("all_message_configs", {}).items()
+            },
+            ai_monitor_configs={
+                key: build(AIMonitorConfig, value)
+                for key, value in data.get("ai_monitor_configs", {}).items()
+            },
+            image_button_configs=[
+                build(ImageButtonConfig, value)
+                for value in data.get("image_button_configs", [])
+            ],
+            scheduled_message_configs=[
+                build(ScheduledMessageConfig, value)
+                for value in data.get("scheduled_message_configs", [])
+            ],
+            channel_in_group_configs=list(data.get("channel_in_group_configs", [])),
+        )
 
 # ── models/account.py ──
 """
@@ -599,4 +658,4 @@ class MessageEvent:
     
     @property
     def unique_id(self) -> str:
-        return f"{self.account_id}_{self.message.chat_id}_{self.message.message_id}" 
+        return f"{self.account_id}_{self.message.chat_id}_{self.message.message_id}"

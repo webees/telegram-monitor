@@ -6,10 +6,12 @@
 import json
 import asyncio
 import pytz
+import copy
 from collections import deque
 from pathlib import Path
 from typing import List, Dict, Set, Optional
 from datetime import datetime
+from threading import Lock
 from telethon import events
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -31,6 +33,7 @@ class MonitorEngine(metaclass=Singleton):
         self.logger = get_logger(__name__)
         self.monitors_file = Path("data/monitor.json")
         self.scheduled_messages_file = Path("data/schedule.json")
+        self._save_lock = Lock()
 
         self.scheduler = None
         self._scheduler_started = False
@@ -286,21 +289,15 @@ class MonitorEngine(metaclass=Singleton):
 
                         monitors_data[account_id].append(monitor_data)
 
-            import threading
-            import copy
-            
-            # Deep copy to avoid race conditions with main thread modifications
             monitors_data_copy = copy.deepcopy(monitors_data)
-            
-            def _write_file():
-                try:
-                    with open(self.monitors_file, 'w', encoding='utf-8') as f:
-                        json.dump(monitors_data_copy, f, indent=2, ensure_ascii=False)
-                    self.logger.info(f"已保存监控器配置")
-                except Exception as e:
-                    self.logger.error(f"写入监控器文件失败: {e}")
-                    
-            threading.Thread(target=_write_file, daemon=True).start()
+            temp_file = self.monitors_file.with_suffix(f"{self.monitors_file.suffix}.tmp")
+
+            with self._save_lock:
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    json.dump(monitors_data_copy, f, indent=2, ensure_ascii=False)
+                temp_file.replace(self.monitors_file)
+
+            self.logger.info(f"已保存监控器配置")
 
         except Exception as e:
             self.logger.error(f"序列化监控器配置失败: {e}")
@@ -1194,21 +1191,15 @@ class MonitorEngine(metaclass=Singleton):
         try:
             self.scheduled_messages_file.parent.mkdir(parents=True, exist_ok=True)
             
-            import threading
-            import copy
-            
-            # Deep copy to avoid race conditions with main thread modifications
             messages_copy = copy.deepcopy(self.scheduled_messages)
+            temp_file = self.scheduled_messages_file.with_suffix(f"{self.scheduled_messages_file.suffix}.tmp")
 
-            def _write_file():
-                try:
-                    with open(self.scheduled_messages_file, 'w', encoding='utf-8') as f:
-                        json.dump(messages_copy, f, indent=2, ensure_ascii=False)
-                    self.logger.info(f"已保存 {len(messages_copy)} 条定时消息")
-                except Exception as e:
-                    self.logger.error(f"写入定时消息文件失败: {e}")
+            with self._save_lock:
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    json.dump(messages_copy, f, indent=2, ensure_ascii=False)
+                temp_file.replace(self.scheduled_messages_file)
 
-            threading.Thread(target=_write_file, daemon=True).start()
+            self.logger.info(f"已保存 {len(messages_copy)} 条定时消息")
 
         except Exception as e:
             self.logger.error(f"保存定时消息任务失败: {e}")

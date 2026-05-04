@@ -100,6 +100,10 @@ class BaseMonitor(ABC):
     def _check(self, message_event: MessageEvent, account: Account) -> bool:
         message = message_event.message
         
+        if not message.sender:
+            self.logger.debug(f"消息缺少发送者信息，聊天ID: {message.chat_id}")
+            return False
+
         if message.sender.id == account.own_user_id:
             return False
         
@@ -120,6 +124,9 @@ class BaseMonitor(ABC):
         return True
     
     def _match_user(self, sender) -> bool:
+        if not sender:
+            return not self.config.users
+
         if self.config.users:
             user_option = self.config.user_option
             
@@ -223,11 +230,13 @@ class BaseMonitor(ABC):
         sender = message.sender
         chat_id = message.chat_id
         
-        if sender and str(sender.id) in self.config.blocked_users:
+        blocked_users = {str(user) for user in self.config.blocked_users}
+        if sender and str(sender.id) in blocked_users:
             self.logger.debug(f"消息被用户黑名单拦截: {sender.id}")
             return True
         
-        if sender and getattr(sender, 'is_bot', False) and sender.id in self.config.blocked_bots:
+        blocked_bots = {int(bot_id) for bot_id in self.config.blocked_bots if str(bot_id).lstrip('-').isdigit()}
+        if sender and getattr(sender, 'is_bot', False) and sender.id in blocked_bots:
             self.logger.debug(f"消息被Bot黑名单拦截: {sender.id}")
             return True
         
@@ -340,4 +349,4 @@ class BaseMonitor(ABC):
         self.config = config
     
     async def _type_info(self) -> str:
-        return "" 
+        return ""
