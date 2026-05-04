@@ -34,9 +34,8 @@
     </div>
 
     <div class="monitor-types">
-        <button v-for="item in filterItems" :key="item.value" class="monitor-type-tag"
+        <button v-for="item in filterItems" :key="item.value" class="choice-btn"
                 :class="{active: currentFilter === item.value}" @click="setFilter(item.value)">
-            <i v-if="item.icon" :class="item.icon"></i>
             <span>[[ item.label ]]</span>
             <span class="monitor-type-count">[[ typeCounts[item.countKey] ]]</span>
         </button>
@@ -83,31 +82,21 @@
                     <tr v-for="monitor in pagedMonitors" :key="monitor.key">
                         <td><input type="checkbox" :value="monitor.key"></td>
                         <td>
-                            <div class="flex items-center gap-2">
-                                <i :class="typeIcon(monitor.monitor_type)"></i>
-                                <span>[[ displayName(monitor) ]]</span>
-                            </div>
+                            [[ displayName(monitor) ]]
                         </td>
                         <td>
-                            <span class="monitor-type-badge">
-                                <i :class="typeIcon(monitor.monitor_type)"></i>
-                                [[ typeName(monitor.monitor_type) ]]
-                            </span>
+                            <span class="monitor-type-badge">[[ typeName(monitor.monitor_type) ]]</span>
                         </td>
                         <td>
-                            <span class="rounded px-2 py-1 text-xs" :class="statusClass(monitor)">
-                                [[ statusText(monitor) ]]
-                            </span>
+                            [[ statusText(monitor) ]]
                         </td>
                         <td>[[ executionText(monitor) ]]</td>
                         <td>[[ priority(monitor) ]]</td>
                         <td>[[ formatDate(monitor.created_at) ]]</td>
                         <td>
                             <div class="action-buttons">
-                                <button class="action-btn" :class="toggleClass(monitor)"
-                                        :title="toggleTitle(monitor)"
-                                        @click="toggleStatus(monitor)">
-                                    <i :class="toggleIcon(monitor)"></i>
+                                <button class="action-btn" :title="toggleTitle(monitor)" @click="toggleStatus(monitor)">
+                                    [[ toggleTitle(monitor) ]]
                                 </button>
                                 <button class="action-btn view" title="查看配置" @click="viewConfig(monitor)">
                                     <i class="bi bi-eye"></i>
@@ -126,13 +115,13 @@
         </div>
 
         <div v-if="totalPages > 1" class="pagination">
-            <button class="page-btn" :disabled="currentVisiblePage === 1" @click="changePage(currentVisiblePage - 1)">
+            <button class="choice-btn" :disabled="currentVisiblePage === 1" @click="changePage(currentVisiblePage - 1)">
                 <i class="bi bi-chevron-left"></i>
             </button>
-            <button v-for="page in visiblePages" :key="page" class="page-btn" :class="{active: page === currentVisiblePage}" @click="changePage(page)">
+            <button v-for="page in visiblePages" :key="page" class="choice-btn" :class="{active: page === currentVisiblePage}" @click="changePage(page)">
                 [[ page ]]
             </button>
-            <button class="page-btn" :disabled="currentVisiblePage === totalPages" @click="changePage(currentVisiblePage + 1)">
+            <button class="choice-btn" :disabled="currentVisiblePage === totalPages" @click="changePage(currentVisiblePage + 1)">
                 <i class="bi bi-chevron-right"></i>
             </button>
             <div class="page-info ml-5">
@@ -147,7 +136,7 @@
                 <h5 class="flex min-w-0 items-center gap-2 text-base font-semibold">
                     <i class="bi bi-gear"></i>
                     <span class="truncate">[[ typeName(selectedMonitor.monitor_type) ]]</span>
-                    <span class="status-badge" :class="modalStatusClass(selectedMonitor)">
+                    <span class="status-badge">
                         [[ isActive(selectedMonitor) ? '运行中' : '已暂停' ]]
                     </span>
                 </h5>
@@ -155,7 +144,7 @@
             </div>
             <div class="config-modal-body">
                 <div class="config-summary">
-                    <div v-for="row in configRows(selectedMonitor)" :key="row.label" class="config-row" :class="{'config-row-wide': row.wide}">
+                    <div v-for="row in configRows(selectedMonitor)" :key="row.label" class="config-row">
                         <span class="config-row-label">[[ row.label ]]</span>
                         <span class="config-row-value">[[ row.value ]]</span>
                     </div>

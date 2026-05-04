@@ -175,17 +175,17 @@ createVueApp({
         },
         detailRows(msg) {
             return [
-                {label: '消息ID', value: this.messageId(msg), wide: true},
+                {label: '消息ID', value: this.messageId(msg)},
                 {label: '状态', value: msg.active !== false ? '运行中' : '已暂停'},
                 {label: '账号', value: msg.account_id || '未设置'},
-                {label: '目标', value: msg.channel_id || msg.target_id || '未设置', wide: true},
-                {label: '调度表达式', value: this.scheduleText(msg), wide: true},
+                {label: '目标', value: msg.channel_id || msg.target_id || '未设置'},
+                {label: '调度表达式', value: this.scheduleText(msg)},
                 {label: '消息类型', value: msg.use_ai ? 'AI生成' : '固定文本'},
                 {label: '随机延时', value: `${msg.random_delay || msg.random_offset || 0} 秒`},
                 {label: '发送后删除', value: msg.delete_after_send || msg.delete_after_sending ? '是' : '否'},
                 {label: '最大执行次数', value: msg.max_executions || '无限制'},
                 {label: '已执行次数', value: msg.execution_count || 0},
-                {label: msg.use_ai ? 'AI提示词' : '消息内容', value: msg.use_ai ? (msg.ai_prompt || '无') : (msg.message || '无'), wide: true}
+                {label: msg.use_ai ? 'AI提示词' : '消息内容', value: msg.use_ai ? (msg.ai_prompt || '无') : (msg.message || '无')}
             ];
         }
     },

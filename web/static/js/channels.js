@@ -13,10 +13,10 @@ createVueApp({
             emptyDescription: '请选择账号并加载目标列表',
             filters: [
                 {value: 'all', label: '全部'},
-                {value: 'channel', label: '目标', icon: 'bi bi-broadcast'},
-                {value: 'group', label: '会话', icon: 'bi bi-people'},
-                {value: 'bot', label: 'Bot', icon: 'bi bi-robot'},
-                {value: 'user', label: '私聊', icon: 'bi bi-person'}
+                {value: 'channel', label: '目标'},
+                {value: 'group', label: '会话'},
+                {value: 'bot', label: 'Bot'},
+                {value: 'user', label: '私聊'}
             ]
         };
     },

@@ -11,12 +11,12 @@ createVueApp({
             selectedMonitor: null,
             filterItems: [
                 {value: 'all', label: '全部', countKey: 'total'},
-                {value: 'KeywordMonitor', label: '关键词规则', icon: 'bi bi-search', countKey: 'keyword'},
-                {value: 'FileMonitor', label: '文件规则', icon: 'bi bi-file-earmark', countKey: 'file'},
-                {value: 'ButtonMonitor', label: '按钮规则', icon: 'bi bi-hand-index', countKey: 'button'},
-                {value: 'ImageButtonMonitor', label: '图片按钮规则', icon: 'bi bi-image', countKey: 'imageButton'},
-                {value: 'AIMonitor', label: 'AI规则', icon: 'bi bi-cpu', countKey: 'ai'},
-                {value: 'AllMessagesMonitor', label: '全量规则', icon: 'bi bi-globe', countKey: 'allMessages'}
+                {value: 'KeywordMonitor', label: '关键词规则', countKey: 'keyword'},
+                {value: 'FileMonitor', label: '文件规则', countKey: 'file'},
+                {value: 'ButtonMonitor', label: '按钮规则', countKey: 'button'},
+                {value: 'ImageButtonMonitor', label: '图片按钮规则', countKey: 'imageButton'},
+                {value: 'AIMonitor', label: 'AI规则', countKey: 'ai'},
+                {value: 'AllMessagesMonitor', label: '全量规则', countKey: 'allMessages'}
             ]
         };
     },
@@ -107,16 +107,6 @@ createVueApp({
         changePage(page) {
             if (page >= 1 && page <= this.totalPages) this.currentPage = page;
         },
-        typeIcon(type) {
-            return {
-                KeywordMonitor: 'bi bi-search',
-                FileMonitor: 'bi bi-file-earmark',
-                AIMonitor: 'bi bi-cpu',
-                ButtonMonitor: 'bi bi-hand-index',
-                ImageButtonMonitor: 'bi bi-image',
-                AllMessagesMonitor: 'bi bi-globe'
-            }[type] || 'bi bi-eye';
-        },
         typeName(type) {
             return {
                 KeywordMonitor: '关键词规则',
@@ -150,22 +140,8 @@ createVueApp({
             if (this.isLimited(monitor)) return '已达限制';
             return '活跃';
         },
-        statusClass(monitor) {
-            if (!this.isActive(monitor)) return 'bg-slate-100 text-slate-600';
-            if (this.isLimited(monitor)) return 'bg-amber-50 text-amber-700';
-            return 'bg-green-50 text-green-700';
-        },
-        toggleClass(monitor) {
-            return this.isActive(monitor) ? 'warning' : 'success';
-        },
         toggleTitle(monitor) {
             return this.isActive(monitor) ? '暂停' : '启动';
-        },
-        toggleIcon(monitor) {
-            return this.isActive(monitor) ? 'bi bi-pause' : 'bi bi-play';
-        },
-        modalStatusClass(monitor) {
-            return this.isActive(monitor) ? 'status-badge-success' : 'status-badge-muted';
         },
         executionText(monitor) {
             return `${monitor.execution_count || 0}${monitor.max_executions ? ` / ${monitor.max_executions}` : ''}`;
@@ -216,13 +192,13 @@ createVueApp({
             return [
                 {label: '类型', value: this.typeName(monitor.monitor_type)},
                 {label: '状态', value: config.active !== false ? '运行中' : '已暂停'},
-                {label: '适用范围', value: this.list(config.chats), wide: true},
+                {label: '适用范围', value: this.list(config.chats)},
                 {label: '自动转发', value: this.yesNo(config.auto_forward)},
                 {label: '转发目标', value: this.list(config.forward_targets)},
                 {label: '智能改写', value: this.yesNo(config.forward_rewrite_enabled)},
                 {label: '自动回复', value: this.yesNo(config.reply_enabled)},
                 {label: '执行限制', value: config.max_executions || '无限制'},
-                {label: '转发文案模板', value: config.forward_rewrite_template || '未设置', wide: true}
+                {label: '转发文案模板', value: config.forward_rewrite_template || '未设置'}
             ];
         },
         async deleteMonitor(monitorKey) {

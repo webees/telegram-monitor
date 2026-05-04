@@ -24,21 +24,16 @@ createVueApp({
             const offline = this.accounts.filter(a => a.is_valid && !a.monitor_active).length;
             const invalid = this.accounts.filter(a => !a.is_valid).length;
             return [
-                {label: '总账号数', value: total, footer: '已添加的所有账号', icon: 'bi bi-people'},
-                {label: '在线账号', value: online, footer: '正常连接中', icon: 'bi bi-check-circle'},
-                {label: '离线账号', value: offline, footer: '需要重新连接', icon: 'bi bi-x-circle'},
-                {label: '失效账号', value: invalid, footer: '需要重新登录', icon: 'bi bi-exclamation-triangle', extraClass: 'border-l-4 border-pink-500'}
+                {label: '总账号数', value: total, footer: '已添加的所有账号'},
+                {label: '在线账号', value: online, footer: '正常连接中'},
+                {label: '离线账号', value: offline, footer: '需要重新连接'},
+                {label: '失效账号', value: invalid, footer: '需要重新登录'}
             ];
         }
     },
     methods: {
         accountInitial(account) {
             return account.name ? account.name.charAt(0).toUpperCase() : String(account.phone || '--').slice(-2);
-        },
-        accountDotClass(account) {
-            if (account.is_valid && account.monitor_active) return '';
-            if (account.is_valid) return 'offline';
-            return account.status || 'error';
         },
         resetAddForm() {
             this.addForm = {phone: '', api_id: '', api_hash: '', proxy_type: '', proxy_address: ''};

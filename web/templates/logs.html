@@ -27,15 +27,14 @@
                     <span class="log-count-badge">[[ stats.info ]]</span>
                 </div>
             </div>
-            <div class="loading-indicator" :class="loading ? 'flex' : 'hidden'">
-                <div class="loading-spinner"></div>
+            <div v-if="loading" class="loading-indicator">
                 <span>更新中...</span>
             </div>
         </div>
         
         <div class="logs-actions">
-            <button v-for="item in filters" :key="item.value" class="log-filter-btn"
-                    :class="[item.value, {active: currentFilter === item.value}]"
+            <button v-for="item in filters" :key="item.value" class="choice-btn"
+                    :class="{active: currentFilter === item.value}"
                     @click="currentFilter = item.value">
                 [[ item.label ]]
             </button>
@@ -73,7 +72,7 @@
         <div v-for="log in visibleLogs" :key="log.timestamp + log.source + log.message" class="log-entry">
             <div class="log-header">
                 <span class="log-time">[[ formatTime(log.timestamp) ]]</span>
-                <span class="log-badge" :class="String(log.level || '').toLowerCase()">[[ log.level ]]</span>
+                <span class="log-badge">[[ log.level ]]</span>
                 <span class="log-source">[[ log.source ]]</span>
             </div>
             <div class="log-content">[[ log.message ]]</div>

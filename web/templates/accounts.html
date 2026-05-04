@@ -14,11 +14,8 @@
     </div>
 
     <div class="stats-grid">
-        <div v-for="item in statCards" :key="item.label" class="stat-card" :class="item.extraClass">
-            <div class="stat-header">
-                <div class="stat-title">[[ item.label ]]</div>
-                <div class="stat-icon"><i :class="item.icon"></i></div>
-            </div>
+        <div v-for="item in statCards" :key="item.label" class="stat-card">
+            <div class="stat-title">[[ item.label ]]</div>
             <div class="stat-value">[[ item.value ]]</div>
             <div class="stat-footer">[[ item.footer ]]</div>
         </div>
@@ -34,16 +31,13 @@
             <div class="account-header">
                 <div class="account-avatar">
                     [[ accountInitial(account) ]]
-                    <div class="account-status-dot" :class="accountDotClass(account)" :title="account.status_display"></div>
                 </div>
                 <div class="account-info">
                     <div class="account-name">[[ account.name || account.phone ]]</div>
                     <div class="account-phone">
                         <i class="bi bi-phone"></i>
                         [[ account.phone ]]
-                        <span class="ml-2 text-xs" :class="account.is_valid ? 'text-green-600' : 'text-red-600'">
-                            [[ account.status_display ]]
-                        </span>
+                        <span class="ml-2 text-xs">[[ account.status_display ]]</span>
                     </div>
                 </div>
             </div>
@@ -61,7 +55,6 @@
             </div>
             <div class="account-actions">
                 <button v-if="account.is_valid" class="account-action-btn" @click="toggleAccount(account.account_id)">
-                    <i :class="account.monitor_active ? 'bi bi-pause' : 'bi bi-play'"></i>
                     [[ account.monitor_active ? '停止' : '启动' ]]
                 </button>
                 <button v-if="account.is_valid" class="account-action-btn" @click="goMonitors(account.account_id)">
@@ -171,7 +164,7 @@
                         <div class="relative">
                             <input v-model="password" :type="showPassword ? 'text' : 'password'" class="form-input pr-12" required>
                             <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" @click="showPassword = !showPassword">
-                                <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+                                [[ showPassword ? '隐藏' : '显示' ]]
                             </button>
                         </div>
                     </div>

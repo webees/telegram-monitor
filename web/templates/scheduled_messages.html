@@ -8,26 +8,17 @@
 <div id="scheduled-app" v-cloak>
     <div class="stats-grid">
         <div class="stat-card">
-            <div class="stat-header">
-                <div class="stat-title">总消息数</div>
-                <div class="stat-icon"><i class="bi bi-envelope"></i></div>
-            </div>
+            <div class="stat-title">总消息数</div>
             <div class="stat-value">[[ stats.total_count ]]</div>
             <div class="stat-footer">所有计划任务</div>
         </div>
-        <div class="stat-card" :class="stats.paused_count > 0 ? 'border-l-4 border-l-amber-500' : ''">
-            <div class="stat-header">
-                <div class="stat-title">已暂停</div>
-                <div class="stat-icon"><i class="bi bi-pause-circle"></i></div>
-            </div>
+        <div class="stat-card">
+            <div class="stat-title">已暂停</div>
             <div class="stat-value">[[ stats.paused_count ]]</div>
             <div class="stat-footer">暂停或达到限制</div>
         </div>
         <div class="stat-card">
-            <div class="stat-header">
-                <div class="stat-title">总执行次数</div>
-                <div class="stat-icon"><i class="bi bi-arrow-repeat"></i></div>
-            </div>
+            <div class="stat-title">总执行次数</div>
             <div class="stat-value">[[ stats.total_executions ]]</div>
             <div class="stat-footer">累计执行统计</div>
         </div>
@@ -73,8 +64,8 @@
                 目标: [[ msg.channel_id || msg.target_id || '未设置' ]]
             </div>
             <div class="message-actions">
-                <button class="btn btn-sm" :class="msg.active !== false ? 'btn-warning' : 'btn-success'" @click="toggleStatus(msg)">
-                    <i :class="msg.active !== false ? 'bi bi-pause' : 'bi bi-play'"></i>
+                <button class="btn btn-sm" @click="toggleStatus(msg)">
+                    [[ msg.active !== false ? '暂停' : '启动' ]]
                 </button>
                 <button class="btn btn-sm btn-info" @click="selectedMessage = msg"><i class="bi bi-eye"></i></button>
                 <button class="btn btn-sm" @click="openModal(msg)"><i class="bi bi-pencil"></i></button>
@@ -174,7 +165,7 @@
             </div>
             <div class="config-modal-body">
                 <div class="config-summary">
-                    <div v-for="row in detailRows(selectedMessage)" :key="row.label" class="config-row" :class="{'config-row-wide': row.wide}">
+                    <div v-for="row in detailRows(selectedMessage)" :key="row.label" class="config-row">
                         <span class="config-row-label">[[ row.label ]]</span>
                         <span class="config-row-value">[[ row.value ]]</span>
                     </div>
