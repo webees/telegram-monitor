@@ -13,7 +13,7 @@ import uuid
 from core.model import (
     KeywordConfig, FileConfig, AIMonitorConfig,
     MatchType, ButtonConfig, AllMessagesConfig, MonitorMode, ImageButtonConfig,
-    ReplyMode, ReplyContentType
+    ReplyMode, ReplyContentType, is_enabled
 )
 from monitor import monitor_factory, AIMonitorBuilder
 from core.ai import AIService
@@ -879,11 +879,11 @@ class ConfigWizard(metaclass=Singleton):
                     {
                         "name": "forward_rewrite_template",
                         "type": "textarea",
-                        "label": "追加内容模板",
+                        "label": "转发文案模板",
                         "required": False,
                         "rows": 3,
                         "placeholder": "{clean_text}\n\n更多{topic}资讯，请关注 @your_channel",
-                        "help": "这是最终转发文案模板。{clean_text}=AI清理后的正文，{topic}=AI识别的主题。想保留新闻正文就必须写 {clean_text}。",
+                        "help": "可写完整文案，也可只写要追加的内容。包含 {clean_text} 时按完整文案发送；不包含时会自动追加到清理后的正文后面。{topic}=AI识别的主题。",
                         "examples": [
                             "{clean_text}\n\n更多{topic}资讯，请关注 @your_channel",
                             "{clean_text}\n\n整理发布：我的频道",
@@ -1224,9 +1224,9 @@ class ConfigWizard(metaclass=Singleton):
                 for key, value in condition.items():
                     collected_value = session.collected_data.get(key)
                     if isinstance(value, bool) and value:
-                        should_show = collected_value in (True, "on", "true", "1")
+                        should_show = is_enabled(collected_value)
                     elif isinstance(value, bool) and not value:
-                        should_show = collected_value not in (True, "on", "true", "1")
+                        should_show = not is_enabled(collected_value)
                     else:
                         should_show = collected_value == value
 
@@ -1297,12 +1297,14 @@ class ConfigWizard(metaclass=Singleton):
         if "chats" in data:
             summary_parts.append(f"监控群组: {data['chats']}")
 
-        if data.get("email_notify"):
+        if is_enabled(data.get("email_notify")):
             summary_parts.append("✓ 邮件通知")
-        if data.get("auto_forward"):
+        if is_enabled(data.get("auto_forward")):
             summary_parts.append("✓ 自动转发")
-            if data.get("enhanced_forward"):
+            if is_enabled(data.get("enhanced_forward")):
                 summary_parts.append("✓ 增强转发")
+            if is_enabled(data.get("forward_rewrite_enabled")):
+                summary_parts.append("✓ 智能改写")
 
         return "\n".join(summary_parts)
 
@@ -1419,7 +1421,7 @@ class ConfigWizard(metaclass=Singleton):
             if "required_if" in rules:
                 condition = rules["required_if"]
                 should_require = all(
-                    (data.get(k) in (True, "on", "true", "1") if isinstance(v, bool) and v else data.get(k) == v)
+                    (is_enabled(data.get(k)) is v if isinstance(v, bool) else data.get(k) == v)
                     for k, v in condition.items()
                 )
                 if should_require and not value:
@@ -1448,7 +1450,7 @@ class ConfigWizard(metaclass=Singleton):
 
             if "auto_forward" in step_data:
                 auto_forward = step_data.get("auto_forward")
-                if auto_forward in (True, "on", "true", "1") and "auto_forward" in step.conditional_next:
+                if is_enabled(auto_forward) and "auto_forward" in step.conditional_next:
                     return step.conditional_next["auto_forward"]
 
         return step.next_step
@@ -1571,8 +1573,13 @@ class ConfigWizard(metaclass=Singleton):
                     except ValueError:
                         chats.append(chat)
 
+        auto_forward = is_enabled(data.get('auto_forward'))
+        email_notify = is_enabled(data.get('email_notify'))
+        enhanced_forward = is_enabled(data.get('enhanced_forward'))
+        reply_enabled = is_enabled(data.get('reply_enabled'))
+
         forward_targets = []
-        if data.get('auto_forward'):
+        if auto_forward:
             targets_str = data.get('forward_targets', '')
             if targets_str:
                 for target in targets_str.split(','):
@@ -1584,7 +1591,7 @@ class ConfigWizard(metaclass=Singleton):
                             forward_targets.append(target)
 
         reply_texts = []
-        if data.get('reply_enabled'):
+        if reply_enabled:
             texts_str = data.get('reply_texts', '')
             if texts_str:
                 reply_texts = [text.strip() for text in texts_str.split('\n') if text.strip()]
@@ -1599,19 +1606,19 @@ class ConfigWizard(metaclass=Singleton):
             keyword=data.get('keyword', ''),
             match_type=MatchType(data.get('match_type', 'partial')),
             chats=chats,
-            email_notify=data.get('email_notify', False),
-            auto_forward=data.get('auto_forward', False),
+            email_notify=email_notify,
+            auto_forward=auto_forward,
             forward_targets=forward_targets,
-            enhanced_forward=data.get('enhanced_forward', False),
-            max_download_size_mb=float(data.get('max_download_size_mb')) if data.get('max_download_size_mb') and data.get('max_download_size_mb').strip() else None,
-            forward_rewrite_enabled=data.get('forward_rewrite_enabled') in (True, "on", "true", "1"),
+            enhanced_forward=enhanced_forward,
+            max_download_size_mb=float(data.get('max_download_size') or data.get('max_download_size_mb')) if str(data.get('max_download_size') or data.get('max_download_size_mb') or '').strip() else None,
+            forward_rewrite_enabled=is_enabled(data.get('forward_rewrite_enabled')),
             forward_rewrite_template=data.get('forward_rewrite_template', ''),
             forward_rewrite_prompt=data.get('forward_rewrite_prompt', ''),
             log_file=data.get('log_file') if data.get('log_file') else None,
             max_executions=int(data.get('max_executions')) if data.get('max_executions') else None,
             priority=int(data.get('priority', 50)),
             execution_mode=data.get('execution_mode', 'merge'),
-            reply_enabled=data.get('reply_enabled', False),
+            reply_enabled=reply_enabled,
             reply_texts=reply_texts,
             reply_delay_min=float(data.get('reply_delay_min', 0)) if data.get('reply_delay_min') and str(data.get('reply_delay_min')).strip() else 0,
             reply_delay_max=float(data.get('reply_delay_max', 0)) if data.get('reply_delay_max') and str(data.get('reply_delay_max')).strip() else 0,
@@ -1744,13 +1751,13 @@ class ConfigWizard(metaclass=Singleton):
         extensions_str = data.get("file_extension", "")
         extensions = [ext.strip() for ext in extensions_str.split(",") if ext.strip()]
 
-        auto_forward = data.get("auto_forward") in (True, "on", "true", "1")
-        email_notify = data.get("email_notify") in (True, "on", "true", "1")
-        enhanced_forward = data.get("enhanced_forward") in (True, "on", "true", "1")
-        save_files = data.get("save_files") in (True, "on", "true", "1")
-        filter_users = data.get("filter_users") in (True, "on", "true", "1")
-        log_to_file = data.get("log_to_file") in (True, "on", "true", "1")
-        filter_specific_ids = data.get("filter_specific_ids") in (True, "on", "true", "1")
+        auto_forward = is_enabled(data.get("auto_forward"))
+        email_notify = is_enabled(data.get("email_notify"))
+        enhanced_forward = is_enabled(data.get("enhanced_forward"))
+        save_files = is_enabled(data.get("save_files"))
+        filter_users = is_enabled(data.get("filter_users"))
+        log_to_file = is_enabled(data.get("log_to_file"))
+        filter_specific_ids = is_enabled(data.get("filter_specific_ids"))
         filter_mode = data.get("filter_mode", "blacklist")
 
         users = []
@@ -1882,7 +1889,7 @@ class ConfigWizard(metaclass=Singleton):
                 forward_targets=forward_targets,
                 enhanced_forward=enhanced_forward,
                 max_download_size_mb=max_download_size,
-                forward_rewrite_enabled=data.get('forward_rewrite_enabled') in (True, "on", "true", "1"),
+                forward_rewrite_enabled=is_enabled(data.get('forward_rewrite_enabled')),
                 forward_rewrite_template=data.get('forward_rewrite_template', ''),
                 forward_rewrite_prompt=data.get('forward_rewrite_prompt', ''),
                 max_executions=max_executions,
@@ -1907,10 +1914,10 @@ class ConfigWizard(metaclass=Singleton):
                     except ValueError:
                         pass
 
-        auto_forward = data.get("auto_forward") in (True, "on", "true", "1")
-        email_notify = data.get("email_notify") in (True, "on", "true", "1")
-        enhanced_forward = data.get("enhanced_forward") in (True, "on", "true", "1")
-        reply_enabled = data.get("reply_enabled") in (True, "on", "true", "1")
+        auto_forward = is_enabled(data.get("auto_forward"))
+        email_notify = is_enabled(data.get("email_notify"))
+        enhanced_forward = is_enabled(data.get("enhanced_forward"))
+        reply_enabled = is_enabled(data.get("reply_enabled"))
 
         forward_targets = []
         if auto_forward and data.get("forward_targets"):
@@ -1971,7 +1978,7 @@ class ConfigWizard(metaclass=Singleton):
         builder.with_execution_mode(data.get('execution_mode', 'merge'))
 
         config = builder.build()
-        config.forward_rewrite_enabled = data.get('forward_rewrite_enabled') in (True, "on", "true", "1")
+        config.forward_rewrite_enabled = is_enabled(data.get('forward_rewrite_enabled'))
         config.forward_rewrite_template = data.get('forward_rewrite_template', '')
         config.forward_rewrite_prompt = data.get('forward_rewrite_prompt', '')
         return config
@@ -1989,12 +1996,12 @@ class ConfigWizard(metaclass=Singleton):
                     except ValueError:
                         pass
 
-        auto_forward = data.get("auto_forward") in (True, "on", "true", "1")
-        email_notify = data.get("email_notify") in (True, "on", "true", "1")
-        enhanced_forward = data.get("enhanced_forward") in (True, "on", "true", "1")
-        filter_users = data.get("filter_users") in (True, "on", "true", "1")
-        log_to_file = data.get("log_to_file") in (True, "on", "true", "1")
-        filter_specific_ids = data.get("filter_specific_ids") in (True, "on", "true", "1")
+        auto_forward = is_enabled(data.get("auto_forward"))
+        email_notify = is_enabled(data.get("email_notify"))
+        enhanced_forward = is_enabled(data.get("enhanced_forward"))
+        filter_users = is_enabled(data.get("filter_users"))
+        log_to_file = is_enabled(data.get("log_to_file"))
+        filter_specific_ids = is_enabled(data.get("filter_specific_ids"))
 
         users = []
         if filter_users and data.get("users"):
@@ -2099,7 +2106,7 @@ class ConfigWizard(metaclass=Singleton):
             forward_targets=forward_targets,
             enhanced_forward=enhanced_forward,
             max_download_size_mb=max_download_size,
-            forward_rewrite_enabled=data.get('forward_rewrite_enabled') in (True, "on", "true", "1"),
+            forward_rewrite_enabled=is_enabled(data.get('forward_rewrite_enabled')),
             forward_rewrite_template=data.get('forward_rewrite_template', ''),
             forward_rewrite_prompt=data.get('forward_rewrite_prompt', ''),
             max_executions=max_executions,
@@ -2121,13 +2128,13 @@ class ConfigWizard(metaclass=Singleton):
                     except ValueError:
                         pass
 
-        auto_forward = data.get("auto_forward") in (True, "on", "true", "1")
-        email_notify = data.get("email_notify") in (True, "on", "true", "1")
-        enhanced_forward = data.get("enhanced_forward") in (True, "on", "true", "1")
-        download_images = data.get("download_images") in (True, "on", "true", "1")
-        filter_users = data.get("filter_users") in (True, "on", "true", "1")
-        log_to_file = data.get("log_to_file") in (True, "on", "true", "1")
-        filter_specific_ids = data.get("filter_specific_ids") in (True, "on", "true", "1")
+        auto_forward = is_enabled(data.get("auto_forward"))
+        email_notify = is_enabled(data.get("email_notify"))
+        enhanced_forward = is_enabled(data.get("enhanced_forward"))
+        download_images = is_enabled(data.get("download_images"))
+        filter_users = is_enabled(data.get("filter_users"))
+        log_to_file = is_enabled(data.get("log_to_file"))
+        filter_specific_ids = is_enabled(data.get("filter_specific_ids"))
 
         button_keywords = []
         if data.get("button_keywords"):
@@ -2244,7 +2251,7 @@ class ConfigWizard(metaclass=Singleton):
             forward_targets=forward_targets,
             enhanced_forward=enhanced_forward,
             max_download_size_mb=max_download_size,
-            forward_rewrite_enabled=data.get('forward_rewrite_enabled') in (True, "on", "true", "1"),
+            forward_rewrite_enabled=is_enabled(data.get('forward_rewrite_enabled')),
             forward_rewrite_template=data.get('forward_rewrite_template', ''),
             forward_rewrite_prompt=data.get('forward_rewrite_prompt', ''),
             max_executions=max_executions,
@@ -2261,12 +2268,12 @@ class ConfigWizard(metaclass=Singleton):
             except ValueError:
                 pass
 
-        auto_forward = data.get("auto_forward") in (True, "on", "true", "1")
-        email_notify = data.get("email_notify") in (True, "on", "true", "1")
-        enhanced_forward = data.get("enhanced_forward") in (True, "on", "true", "1")
-        reply_enabled = data.get("reply_enabled") in (True, "on", "true", "1")
-        filter_users = data.get("filter_users") in (True, "on", "true", "1")
-        log_to_file = data.get("log_to_file") in (True, "on", "true", "1")
+        auto_forward = is_enabled(data.get("auto_forward"))
+        email_notify = is_enabled(data.get("email_notify"))
+        enhanced_forward = is_enabled(data.get("enhanced_forward"))
+        reply_enabled = is_enabled(data.get("reply_enabled"))
+        filter_users = is_enabled(data.get("filter_users"))
+        log_to_file = is_enabled(data.get("log_to_file"))
 
         reply_texts = []
         if reply_enabled and data.get("reply_texts"):
@@ -2350,7 +2357,7 @@ class ConfigWizard(metaclass=Singleton):
             forward_targets=forward_targets,
             enhanced_forward=enhanced_forward,
             max_download_size_mb=max_download_size,
-            forward_rewrite_enabled=data.get('forward_rewrite_enabled') in (True, "on", "true", "1"),
+            forward_rewrite_enabled=is_enabled(data.get('forward_rewrite_enabled')),
             forward_rewrite_template=data.get('forward_rewrite_template', ''),
             forward_rewrite_prompt=data.get('forward_rewrite_prompt', ''),
             reply_enabled=reply_enabled,

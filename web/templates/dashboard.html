@@ -71,7 +71,13 @@
 <script>
     const setText = (id, value) => {
         const el = document.getElementById(id);
-        if (el) el.textContent = value ?? '-';
+        const next = String(value ?? '-');
+        if (el && el.textContent !== next) el.textContent = next;
+    };
+
+    const setProgress = (id, value) => {
+        const el = document.getElementById(id);
+        if (el && Number(el.value) !== value) el.value = value;
     };
 
     function updateDashboardStats(data) {
@@ -89,16 +95,10 @@
         setText('cpu-usage', `${cpu}%`);
         setText('memory-usage', `${Math.round(data.memory_used_mb ?? 0)} MB (${memory}%)`);
         setText('disk-usage', `${disk}%`);
-        document.getElementById('cpu-progress').value = cpu;
-        document.getElementById('memory-progress').value = memory;
-        document.getElementById('disk-progress').value = disk;
+        setProgress('cpu-progress', cpu);
+        setProgress('memory-progress', memory);
+        setProgress('disk-progress', disk);
         setText('network-status', data.network_status || '未知');
     }
-
-    fetch('/api/stats').then(r => r.json()).then(updateDashboardStats).catch(() => {
-        ['total-accounts', 'active-monitors', 'processed-messages'].forEach(id => setText(id, 0));
-        setText('runtime', '-');
-        setText('network-status', '连接失败');
-    });
 </script>
 {% endblock %}

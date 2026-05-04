@@ -98,8 +98,6 @@ class TelegramMonitorWebApp:
             await self.monitor_engine.start()
             self.logger.info("监控引擎启动完成")
             
-            await self.web_app.start_background_tasks()
-            
             config_uvicorn = uvicorn.Config(
                 app=self.app,
                 host=self.host,

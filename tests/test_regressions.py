@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from core.account import AccountManager
+from core.ai import AIService
 from core.config import Config, config as app_config
 from core.forward import EnhancedForwardService
 from core.forward_store import ForwardStore
@@ -22,6 +23,7 @@ from core.model import (
 )
 from core.storage import atomic_write_json, read_json_file
 from monitor.base import BaseMonitor, MonitorResult
+from web.wizard import ConfigWizard
 
 
 class DummyMonitor(BaseMonitor):
@@ -86,6 +88,7 @@ def test_monitor_config_round_trip_preserves_enum_values():
 
 def test_forward_rewrite_options_respect_forward_state():
     disabled = BaseMonitorConfig(forward_rewrite_enabled=True)
+    string_false = BaseMonitorConfig(auto_forward="false", forward_rewrite_enabled="true")
     enabled = BaseMonitorConfig(
         auto_forward=True,
         forward_rewrite_enabled=True,
@@ -94,11 +97,78 @@ def test_forward_rewrite_options_respect_forward_state():
     )
 
     assert disabled.forward_rewrite_options() == {}
+    assert string_false.forward_rewrite_options() == {}
     assert enabled.forward_rewrite_options() == {
         "enabled": True,
         "template": "更多{topic}",
         "prompt": "清理广告"
     }
+
+
+def test_wizard_keyword_rewrite_flag_is_saved_as_boolean():
+    ConfigWizard.clear_instance()
+    wizard = ConfigWizard()
+
+    config = wizard._make_keyword({
+        "keyword": "新闻",
+        "match_type": "partial",
+        "chats": "-1001",
+        "auto_forward": "on",
+        "forward_targets": "-1002",
+        "forward_rewrite_enabled": "on",
+        "forward_rewrite_template": "{clean_text}\n\n关注{topic}",
+        "forward_rewrite_prompt": "删除广告"
+    })
+
+    assert config.auto_forward is True
+    assert config.forward_rewrite_enabled is True
+    assert config.forward_rewrite_options()["template"] == "{clean_text}\n\n关注{topic}"
+
+    ConfigWizard.clear_instance()
+
+
+def test_rewrite_forward_text_keeps_json_contract_for_custom_rule(monkeypatch):
+    AIService.clear_instance()
+    service = AIService()
+    prompts = []
+
+    async def fake_completion(messages, *args, **kwargs):
+        prompts.append(messages[0]["content"])
+        return '{"topic":"财经","clean_text":"清理后的正文"}'
+
+    monkeypatch.setattr(service, "_ensure_initialized", lambda: None)
+    monkeypatch.setattr(service, "is_configured", lambda: True)
+    monkeypatch.setattr(service, "get_chat_completion", fake_completion)
+
+    result = asyncio.run(service.rewrite_forward_text(
+        "原文广告",
+        "{clean_text}\n\n更多{topic}",
+        "删除联系方式"
+    ))
+
+    assert "请只返回 JSON" in prompts[0]
+    assert "删除联系方式" in prompts[0]
+    assert result["final_text"] == "清理后的正文\n\n更多财经"
+
+    AIService.clear_instance()
+
+
+def test_rewrite_forward_text_appends_plain_template(monkeypatch):
+    AIService.clear_instance()
+    service = AIService()
+
+    async def fake_completion(messages, *args, **kwargs):
+        return '{"topic":"科技","clean_text":"清理后的正文"}'
+
+    monkeypatch.setattr(service, "_ensure_initialized", lambda: None)
+    monkeypatch.setattr(service, "is_configured", lambda: True)
+    monkeypatch.setattr(service, "get_chat_completion", fake_completion)
+
+    result = asyncio.run(service.rewrite_forward_text("原文广告", "关注{topic}", ""))
+
+    assert result["final_text"] == "清理后的正文\n\n关注科技"
+
+    AIService.clear_instance()
 
 
 class FakeClient:

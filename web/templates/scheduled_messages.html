@@ -54,6 +54,10 @@
         <i class="bi bi-plus-lg"></i>
         添加计划任务
     </button>
+    <button class="btn btn-secondary" onclick="loadMessages()">
+        <i class="bi bi-arrow-clockwise"></i>
+        刷新
+    </button>
     
     <div>
         <span class="text-muted">共 <span id="message-count">0</span> 条计划任务</span>
@@ -209,10 +213,6 @@
             cronInput.addEventListener('blur', validateCronExpression);
             cronInput.addEventListener('input', clearCronError);
         }
-        
-        setInterval(function() {
-            loadMessages();
-        }, 10000);
     });
     
     function validateCronExpression() {
@@ -499,7 +499,7 @@
                         <button class="btn btn-icon" onclick="editMessage('${msg.job_id || msg.id}')" title="编辑">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="btn btn-icon text-danger" onclick="deleteMessage('${msg.job_id || msg.id}')" title="删除">
+                        <button class="btn btn-danger btn-icon" onclick="deleteMessage('${msg.job_id || msg.id}')" title="删除">
                             <i class="bi bi-trash"></i>
                         </button>
                     </div>

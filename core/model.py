@@ -13,6 +13,12 @@ from dataclasses import dataclass, field, fields, is_dataclass
 from enum import Enum
 
 
+def is_enabled(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "on", "yes", "y"}
+    return bool(value)
+
+
 class MatchType(Enum):
     EXACT = "exact"
     PARTIAL = "partial" 
@@ -85,7 +91,7 @@ class BaseMonitorConfig:
         self.execution_count = 0
 
     def forward_rewrite_options(self) -> Dict[str, Any]:
-        if not self.auto_forward or not self.forward_rewrite_enabled:
+        if not is_enabled(self.auto_forward) or not is_enabled(self.forward_rewrite_enabled):
             return {}
         return {
             "enabled": True,

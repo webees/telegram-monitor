@@ -389,11 +389,11 @@
                     <div class="form-help">转发前调用AI清理广告并识别主题。AI失败时不会发原文，会进入转发列表等待重试。</div>
 
                     <div id="forward-rewrite-config" class="nested-config hidden">
-                        <label class="form-label">追加内容模板</label>
+                        <label class="form-label">转发文案模板</label>
                         <textarea class="form-input" name="forward_rewrite_template" rows="5" placeholder="{clean_text}&#10;&#10;更多{topic}资讯，请关注 @your_channel"></textarea>
                         <div class="form-help">
-                            这里写“最终要发出去的文案模板”。想保留新闻正文，必须写 <code>{clean_text}</code>。
-                            <code>{topic}</code> 是AI识别的主题，<code>{clean_text}</code> 是AI清理广告后的正文。
+                            可写完整文案，也可只写要追加的内容。包含 <code>{clean_text}</code> 时按完整文案发送；不包含时会自动追加到清理后的正文后面。
+                            <code>{topic}</code> 是AI识别的主题。
                         </div>
                         <div class="help-examples">
                             例1，正文后加频道：<br>
@@ -967,11 +967,15 @@
         const container = document.querySelector('.wizard-content');
         container.innerHTML = `
             <div class="completion-container">
-                <div class="completion-icon">
-                    <i class="bi bi-check"></i>
+                <div class="completion-header">
+                    <div class="completion-icon">
+                        <i class="bi bi-check-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="completion-title">配置完成</h3>
+                        <p class="completion-message">${message}</p>
+                    </div>
                 </div>
-                <h3 class="completion-title">配置完成!</h3>
-                <p class="completion-message">${message}</p>
                 
                 <div class="action-cards">
                     <a href="/monitors" class="action-card">

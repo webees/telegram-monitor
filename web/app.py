@@ -3,7 +3,6 @@ Web应用主文件
 基于FastAPI的现代化Web界面
 """
 
-import asyncio
 import json
 import secrets
 import pytz
@@ -13,7 +12,7 @@ from datetime import datetime
 import io
 from apscheduler.triggers.cron import CronTrigger
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Form, HTTPException, Depends, Cookie
+from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse, RedirectResponse
@@ -23,7 +22,7 @@ from pydantic import BaseModel
 from core import AccountManager, MonitorEngine
 from core.account import AccountFactory
 from core.forward_store import ForwardStore
-from core.model import Account, AccountConfig
+from core.model import Account, AccountConfig, is_enabled
 from core.model import KeywordConfig, FileConfig, AIMonitorConfig, MatchType, ScheduledMessageConfig
 from monitor import monitor_factory, AIMonitorBuilder
 from core.ai import AIService
@@ -123,9 +122,6 @@ class WebApp:
         self.config_wizard = ConfigWizard()
         self.logger = get_logger(__name__)
         
-        self.websocket_connections: List[WebSocket] = []
-        self._status_task: Optional[asyncio.Task] = None
-        
         self.pending_accounts: Dict[str, Dict[str, Any]] = {}
         
         self.setup_auth()
@@ -134,16 +130,6 @@ class WebApp:
         self.setup_routes()
         
         self.logger.info("Web应用初始化完成")
-    
-    def _remove_ws(self, websocket: WebSocket):
-        try:
-            if websocket in self.websocket_connections:
-                self.websocket_connections.remove(websocket)
-                self.logger.debug("WebSocket连接已安全移除")
-        except (ValueError, AttributeError) as e:
-            self.logger.debug(f"移除WebSocket连接时忽略错误: {e}")
-        except Exception as e:
-            self.logger.warning(f"移除WebSocket连接时发生未预期错误: {e}")
     
     def setup_auth(self):
         # 默认值仅用于首次启动，用户必须在.env中设置实际密码
@@ -156,8 +142,6 @@ class WebApp:
         else:
             self.web_username = default_username
             self.web_password = default_password
-        
-        self.logger.info(f"Web认证配置 - 用户名: {self.web_username}, 密码: {self.web_password}")
         
         if self.web_password in ['admin123', 'your_secure_password_here', 'admin']:
             self.logger.warning("检测到使用默认密码，强烈建议在.env文件中设置安全的WEB_PASSWORD")
@@ -569,7 +553,6 @@ class WebApp:
                     )
                     
                     self.account_manager.add_account(account)
-                    await self.broadcast_status_update()
                     
                     return {"success": True, "message": "账号添加成功"}
                     
@@ -602,8 +585,6 @@ class WebApp:
                     self.account_manager.add_account(account)
                     
                     del self.pending_accounts[verify_code_request.account_id]
-                    
-                    await self.broadcast_status_update()
                     
                     return {"success": True, "message": "账号添加成功"}
                     
@@ -642,8 +623,6 @@ class WebApp:
                 
                 del self.pending_accounts[password_request.account_id]
                 
-                await self.broadcast_status_update()
-                
                 return {"success": True, "message": "账号添加成功"}
                 
             except Exception as e:
@@ -657,7 +636,6 @@ class WebApp:
                 success = self.account_manager.remove_account(account_id)
                 if success:
                     self.monitor_engine.remove_all_monitors(account_id)
-                    await self.broadcast_status_update()
                     return {"success": True, "message": "账号删除成功"}
                 else:
                     return {"success": False, "message": "账号不存在"}
@@ -675,8 +653,6 @@ class WebApp:
             new_status = not account.monitor_active
             self.account_manager.set_account_monitor_status(account_id, new_status)
             
-            await self.broadcast_status_update()
-            
             return {"success": True, "status": new_status}
         
         @self.app.get("/api/monitors/{account_id}")
@@ -689,7 +665,6 @@ class WebApp:
             user = self.get_current_user(request)
             success = self.monitor_engine.remove_monitor(account_id, monitor_key)
             if success:
-                await self.broadcast_status_update()
                 return {"success": True}
             else:
                 raise HTTPException(status_code=404, detail="监控器不存在")
@@ -709,7 +684,6 @@ class WebApp:
                         if generated_key == monitor_key:
                             monitor.config.active = active
                             self.monitor_engine._save_monitors()
-                            await self.broadcast_status_update()
                             
                             self.logger.info(f"监控器状态切换成功: {monitor_key} -> {'启动' if active else '暂停'}")
                             
@@ -900,8 +874,6 @@ class WebApp:
                     else:
                         self.monitor_engine.add_monitor(account_id, monitor, f"keyword_{keyword}")
                         message = "关键词规则创建成功"
-                    
-                    await self.broadcast_status_update()
                     return {"success": True, "message": message}
                 else:
                     return {"success": False, "message": "监控器创建失败"}
@@ -950,7 +922,6 @@ class WebApp:
                 
                 monitor_key = f"ai_{ai_prompt[:20]}..."
                 self.monitor_engine.add_monitor(account_id, ai_monitor, monitor_key)
-                await self.broadcast_status_update()
                 
                 return {"success": True, "message": "AI规则创建成功"}
                 
@@ -1013,8 +984,6 @@ class WebApp:
                     else:
                         self.monitor_engine.add_monitor(account_id, monitor, f"file_{file_extension}")
                         message = "文件规则创建成功"
-                    
-                    await self.broadcast_status_update()
                     return {"success": True, "message": message}
                 else:
                     return {"success": False, "message": "监控器创建失败"}
@@ -1022,26 +991,6 @@ class WebApp:
             except Exception as e:
                 self.logger.error(f"创建文件规则失败: {e}")
                 return {"success": False, "message": f"创建失败: {str(e)}"}
-        
-        @self.app.websocket("/ws")
-        async def websocket_endpoint(websocket: WebSocket):
-            await websocket.accept()
-            if websocket not in self.websocket_connections:
-                self.websocket_connections.append(websocket)
-            
-            try:
-                stats = await self.get_system_stats()
-                await websocket.send_json(stats.dict())
-                
-                while True:
-                    await websocket.receive_text()
-                    
-            except WebSocketDisconnect:
-                pass
-            except Exception as e:
-                self.logger.error(f"WebSocket错误: {e}")
-            finally:
-                self._remove_ws(websocket)
         
         @self.app.get("/api/accounts/{account_id}/channels")
         async def get_account_channels(request: Request, account_id: str, page: int = 1, limit: int = 100, search: str = "", fetch_all: str = ""):
@@ -1941,6 +1890,9 @@ class WebApp:
                                         auto_forward=convert_bool(config_data.get('auto_forward', False)),
                                         forward_targets=config_data.get('forward_targets', []),
                                         enhanced_forward=convert_bool(config_data.get('enhanced_forward', False)),
+                                        forward_rewrite_enabled=convert_bool(config_data.get('forward_rewrite_enabled', False)),
+                                        forward_rewrite_template=config_data.get('forward_rewrite_template', ''),
+                                        forward_rewrite_prompt=config_data.get('forward_rewrite_prompt', ''),
                                         reply_enabled=convert_bool(config_data.get('reply_enabled', False)),
                                         reply_texts=config_data.get('reply_texts', []),
                                         reply_delay_min=config_data.get('reply_delay_min', 0),
@@ -1975,6 +1927,9 @@ class WebApp:
                                         auto_forward=convert_bool(config_data.get('auto_forward', False)),
                                         forward_targets=config_data.get('forward_targets', []),
                                         enhanced_forward=convert_bool(config_data.get('enhanced_forward', False)),
+                                        forward_rewrite_enabled=convert_bool(config_data.get('forward_rewrite_enabled', False)),
+                                        forward_rewrite_template=config_data.get('forward_rewrite_template', ''),
+                                        forward_rewrite_prompt=config_data.get('forward_rewrite_prompt', ''),
                                         save_folder=config_data.get('save_folder'),
                                         min_size=config_data.get('min_size'),
                                         max_size=config_data.get('max_size'),
@@ -2008,6 +1963,9 @@ class WebApp:
                                         auto_forward=convert_bool(config_data.get('auto_forward', False)),
                                         forward_targets=config_data.get('forward_targets', []),
                                         enhanced_forward=convert_bool(config_data.get('enhanced_forward', False)),
+                                        forward_rewrite_enabled=convert_bool(config_data.get('forward_rewrite_enabled', False)),
+                                        forward_rewrite_template=config_data.get('forward_rewrite_template', ''),
+                                        forward_rewrite_prompt=config_data.get('forward_rewrite_prompt', ''),
                                         confidence_threshold=config_data.get('confidence_threshold', 0.7),
                                         ai_model=config_data.get('ai_model', 'gpt-4o'),
                                         reply_enabled=convert_bool(config_data.get('reply_enabled', False)),
@@ -2044,6 +2002,9 @@ class WebApp:
                                         auto_forward=convert_bool(config_data.get('auto_forward', False)),
                                         forward_targets=config_data.get('forward_targets', []),
                                         enhanced_forward=convert_bool(config_data.get('enhanced_forward', False)),
+                                        forward_rewrite_enabled=convert_bool(config_data.get('forward_rewrite_enabled', False)),
+                                        forward_rewrite_template=config_data.get('forward_rewrite_template', ''),
+                                        forward_rewrite_prompt=config_data.get('forward_rewrite_prompt', ''),
                                         reply_enabled=convert_bool(config_data.get('reply_enabled', False)),
                                         reply_texts=config_data.get('reply_texts', []),
                                         reply_delay_min=config_data.get('reply_delay_min', 0),
@@ -2083,6 +2044,9 @@ class WebApp:
                                         auto_forward=convert_bool(config_data.get('auto_forward', False)),
                                         forward_targets=config_data.get('forward_targets', []),
                                         enhanced_forward=convert_bool(config_data.get('enhanced_forward', False)),
+                                        forward_rewrite_enabled=convert_bool(config_data.get('forward_rewrite_enabled', False)),
+                                        forward_rewrite_template=config_data.get('forward_rewrite_template', ''),
+                                        forward_rewrite_prompt=config_data.get('forward_rewrite_prompt', ''),
                                         max_executions=config_data.get('max_executions'),
                                         execution_count=config_data.get('execution_count', 0),
                                         priority=config_data.get('priority', 50),
@@ -2219,8 +2183,6 @@ class WebApp:
                             self.logger.error(f"导入计划任务失败: {e}")
                             continue
                 
-                await self.broadcast_status_update()
-                
                 result_parts = []
                 if imported_accounts > 0:
                     result_parts.append(f"{imported_accounts}个账号")
@@ -2307,14 +2269,14 @@ class WebApp:
                         "monitor_type": monitor.__class__.__name__,
                         "type": monitor.__class__.__name__,
                         "chats": getattr(monitor.config, 'chats', []),
-                        "email_notify": getattr(monitor.config, 'email_notify', False),
-                        "auto_forward": getattr(monitor.config, 'auto_forward', False),
+                        "email_notify": is_enabled(getattr(monitor.config, 'email_notify', False)),
+                        "auto_forward": is_enabled(getattr(monitor.config, 'auto_forward', False)),
                         "forward_targets": getattr(monitor.config, 'forward_targets', []),
-                        "enhanced_forward": getattr(monitor.config, 'enhanced_forward', False),
-                        "forward_rewrite_enabled": getattr(monitor.config, 'forward_rewrite_enabled', False),
+                        "enhanced_forward": is_enabled(getattr(monitor.config, 'enhanced_forward', False)),
+                        "forward_rewrite_enabled": is_enabled(getattr(monitor.config, 'forward_rewrite_enabled', False)),
                         "forward_rewrite_template": getattr(monitor.config, 'forward_rewrite_template', ''),
                         "forward_rewrite_prompt": getattr(monitor.config, 'forward_rewrite_prompt', ''),
-                        "active": getattr(monitor.config, 'active', True),
+                        "active": is_enabled(getattr(monitor.config, 'active', True)),
                         "priority": getattr(monitor.config, 'priority', 50),
                         "execution_mode": getattr(monitor.config, 'execution_mode', 'merge'),
                         "max_executions": getattr(monitor.config, 'max_executions', None),
@@ -2384,44 +2346,6 @@ class WebApp:
                 ))
         
         return result
-    
-    async def broadcast_status_update(self):
-        if not self.websocket_connections:
-            return
-
-        stats = await self.get_system_stats()
-        message = {
-            "type": "stats_update",
-            "data": stats.dict()
-        }
-
-        connections_copy = list(self.websocket_connections)
-        disconnected = []
-
-        for websocket in connections_copy:
-            try:
-                await websocket.send_json(message)
-            except Exception:
-                disconnected.append(websocket)
-
-        for websocket in disconnected:
-            if websocket in self.websocket_connections:
-                self.websocket_connections.remove(websocket)
-    
-    async def start_background_tasks(self):
-        if self._status_task and not self._status_task.done():
-            self.logger.debug("状态更新后台任务已存在，跳过重复启动")
-            return
-
-        async def status_updater():
-            while True:
-                try:
-                    await asyncio.sleep(5)
-                    await self.broadcast_status_update()
-                except Exception as e:
-                    self.logger.error(f"状态更新错误: {e}")
-        
-        self._status_task = asyncio.create_task(status_updater())
     
     def get_app(self) -> FastAPI:
         return self.app 

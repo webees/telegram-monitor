@@ -70,12 +70,9 @@
     let allLogs = [];
     let filteredLogs = [];
     let currentFilter = 'all';
-    let autoScroll = true;
-    let logUpdateInterval = null;
 
     document.addEventListener('DOMContentLoaded', function() {
         loadLogs();
-        startAutoRefresh();
         setupEventListeners();
     });
 
@@ -87,16 +84,6 @@
                 currentFilter = this.dataset.level;
                 filterLogs();
             });
-        });
-
-        const logsViewer = document.getElementById('logs-viewer');
-        logsViewer.addEventListener('scroll', function() {
-            const isAtBottom = this.scrollTop + this.clientHeight >= this.scrollHeight - 10;
-            if (!isAtBottom && autoScroll) {
-                autoScroll = false;
-            } else if (isAtBottom && !autoScroll) {
-                autoScroll = true;
-            }
         });
     }
 
@@ -190,9 +177,7 @@
             </div>
         `;
         
-        if (autoScroll) {
-            container.scrollTop = container.scrollHeight;
-        }
+        container.scrollTop = container.scrollHeight;
     }
 
     function updateLogStats() {
@@ -205,73 +190,6 @@
         document.getElementById('error-count').textContent = errorCount;
         document.getElementById('warning-count').textContent = warningCount;
         document.getElementById('info-count').textContent = infoCount;
-    }
-
-    function toggleAutoScroll() {
-        autoScroll = !autoScroll;
-        updateAutoScrollIndicator();
-        
-        if (autoScroll) {
-            const container = document.getElementById('logs-viewer');
-            container.scrollTop = container.scrollHeight;
-        }
-    }
-
-    function updateAutoScrollIndicator() {
-        const btn = document.getElementById('auto-scroll-btn');
-        const indicator = document.getElementById('auto-scroll-indicator');
-        
-        if (autoScroll) {
-            btn.className = 'btn btn-success btn-sm';
-            btn.innerHTML = '<i class="bi bi-arrow-down-circle-fill"></i>';
-            indicator.classList.remove('hidden');
-        } else {
-            btn.className = 'btn btn-secondary btn-sm';
-            btn.innerHTML = '<i class="bi bi-arrow-down-circle"></i>';
-            indicator.classList.add('hidden');
-        }
-    }
-
-    function startAutoRefresh() {
-        if (logUpdateInterval) {
-            clearInterval(logUpdateInterval);
-        }
-        
-        logUpdateInterval = setInterval(async () => {
-            try {
-                if (document.hidden) {
-                    return;
-                }
-                
-                const response = await fetch(`/api/logs?since=${getLastLogTime()}&limit=50`);
-                const data = await response.json();
-                
-                if (data.success && data.logs && data.logs.length > 0) {
-                    const existingTimestamps = new Set(allLogs.map(log => log.timestamp));
-                    const newLogs = data.logs.filter(log => !existingTimestamps.has(log.timestamp));
-                    
-                    if (newLogs.length > 0) {
-                        allLogs.push(...newLogs);
-                        
-                        if (allLogs.length > 1000) {
-                            allLogs = allLogs.slice(-1000);
-                        }
-                        
-                        updateLogStats();
-                        filterLogs();
-                    }
-                }
-            } catch (error) {
-                console.error('自动刷新日志失败:', error);
-            }
-        }, 5000);
-    }
-
-    function getLastLogTime() {
-        if (allLogs.length === 0) {
-            return new Date(Date.now() - 60000).toISOString();
-        }
-        return allLogs[allLogs.length - 1].timestamp;
     }
 
     function refreshLogs() {
@@ -318,20 +236,10 @@
             if (response.ok) {
                 allLogs = [];
                 filteredLogs = [];
-                
-                if (logUpdateInterval) {
-                    clearInterval(logUpdateInterval);
-                    logUpdateInterval = null;
-                }
-                
+
                 renderLogs();
                 updateLogStats();
                 showNotification('日志已清空', 'success');
-                
-                setTimeout(() => {
-                    startAutoRefresh();
-                }, 3000);
-                
             } else {
                 throw new Error('清空日志失败');
             }
@@ -365,10 +273,5 @@
         }
     }
 
-    window.addEventListener('beforeunload', function() {
-        if (logUpdateInterval) {
-            clearInterval(logUpdateInterval);
-        }
-    });
 </script>
 {% endblock %}

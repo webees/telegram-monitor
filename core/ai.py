@@ -330,15 +330,19 @@ class AIService(metaclass=Singleton):
         if not text or not text.strip() or not self.is_configured():
             return None
 
-        prompt = custom_prompt or """
+        extra_rule = custom_prompt.strip() if custom_prompt else ""
+        extra_rule_text = f"\n用户额外清理规则：\n{extra_rule}\n" if extra_rule else ""
+        prompt = f"""
 请处理下面这条准备自动转发的 Telegram 消息：
 1. 识别新闻或消息主题，用一句简短中文概括。
 2. 删除广告、推广、联系方式、频道引流、无关链接、免责声明、重复标签等噪声。
 3. 保留事实信息、时间、地点、数字、人物、机构名称和原有语义。
 4. 不要编造原文没有的信息。
+{extra_rule_text}
+即使用户额外规则没有提到输出格式，也必须遵守下面的 JSON 输出要求。
 
 请只返回 JSON，不要包含 Markdown：
-{"topic":"主题","clean_text":"清理后的正文"}
+{{"topic":"主题","clean_text":"清理后的正文"}}
 """
 
         messages = [
@@ -354,10 +358,13 @@ class AIService(metaclass=Singleton):
 
         try:
             cleaned = result.strip()
-            if cleaned.startswith("```json"):
-                cleaned = cleaned[7:]
-            if cleaned.endswith("```"):
-                cleaned = cleaned[:-3]
+            if cleaned.startswith("```"):
+                lines = cleaned.splitlines()
+                if lines and lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                cleaned = "\n".join(lines)
             data = json.loads(cleaned.strip())
         except json.JSONDecodeError:
             self.logger.error(f"转发改写AI返回结果不是有效JSON: {result}")
@@ -368,12 +375,19 @@ class AIService(metaclass=Singleton):
         if not clean_text:
             return None
 
+        template = append_template.strip() if append_template else ""
         try:
-            addition = append_template.format(topic=topic, clean_text=clean_text).strip() if append_template else ""
+            addition = template.format(topic=topic, clean_text=clean_text).strip() if template else ""
         except (KeyError, ValueError) as e:
             self.logger.error(f"转发改写模板格式错误: {e}")
-            addition = append_template.strip()
-        final_text = f"{clean_text}\n\n{addition}" if addition else clean_text
+            addition = template
+
+        if not addition:
+            final_text = clean_text
+        elif "{clean_text" in template:
+            final_text = addition
+        else:
+            final_text = f"{clean_text}\n\n{addition}"
 
         return {
             "topic": topic,
