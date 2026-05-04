@@ -57,7 +57,7 @@ class EnhancedForwardService(metaclass=Singleton):
                 results[target_id] = success
                 
             except RewriteUnavailable as e:
-                self.last_error = f"智能改写失败，已阻止原文转发: {e}"
+                self.last_error = f"智能追加失败，已阻止原文转发: {e}"
                 self.logger.error(f"转发到 {target_id} 时阻止原文转发: {e}")
                 results[target_id] = False
             except Exception as e:
@@ -95,15 +95,15 @@ class EnhancedForwardService(metaclass=Singleton):
                     await client.send_file(target_id, original_message.media, caption=rewritten_text)
                 else:
                     await client.send_message(target_id, rewritten_text)
-                self.logger.info(f"智能改写后复制消息到 {target_id}")
+                    self.logger.info(f"智能追加后复制消息到 {target_id}")
                 return True
 
             await client.send_message(target_id, original_message)
             return True
             
         except RewriteUnavailable as e:
-            self.last_error = f"智能改写失败，已阻止原文转发: {e}"
-            self.logger.error(f"智能改写失败，跳过转发到 {target_id}: {e}")
+            self.last_error = f"智能追加失败，已阻止原文转发: {e}"
+            self.logger.error(f"智能追加失败，跳过转发到 {target_id}: {e}")
             if raise_on_rewrite_failure:
                 raise
             return False
@@ -179,9 +179,9 @@ class EnhancedForwardService(metaclass=Singleton):
                 custom_prompt=rewrite_options.get("prompt", "")
             )
             if result and result.get("final_text"):
-                self.logger.info(f"转发智能改写完成，主题: {result.get('topic', '未知')}")
+                self.logger.info(f"转发智能追加完成，主题: {result.get('topic', '未知')}")
                 return result["final_text"]
-            raise RewriteUnavailable("AI未返回有效改写内容")
+            raise RewriteUnavailable("AI未返回有效主题内容")
         except Exception as e:
             if isinstance(e, RewriteUnavailable):
                 raise
@@ -252,8 +252,8 @@ class EnhancedForwardService(metaclass=Singleton):
             return True
             
         except RewriteUnavailable as e:
-            self.last_error = f"智能改写失败，已阻止原文转发: {e}"
-            self.logger.error(f"下载媒体文件前智能改写失败: {e}")
+            self.last_error = f"智能追加失败，已阻止原文转发: {e}"
+            self.logger.error(f"下载媒体文件前智能追加失败: {e}")
             return False
         except Exception as e:
             self.last_error = str(e)
@@ -281,8 +281,8 @@ class EnhancedForwardService(metaclass=Singleton):
             return False
             
         except RewriteUnavailable as e:
-            self.last_error = f"智能改写失败，已阻止原文转发: {e}"
-            self.logger.error(f"发送文本前智能改写失败: {e}")
+            self.last_error = f"智能追加失败，已阻止原文转发: {e}"
+            self.logger.error(f"发送文本前智能追加失败: {e}")
             return False
         except Exception as e:
             self.last_error = str(e)

@@ -330,19 +330,20 @@ class AIService(metaclass=Singleton):
         if not text or not text.strip() or not self.is_configured():
             return None
 
+        original_text = text
         extra_rule = custom_prompt.strip() if custom_prompt else ""
-        extra_rule_text = f"\n用户额外清理规则：\n{extra_rule}\n" if extra_rule else ""
+        extra_rule_text = f"\n用户额外提取规则：\n{extra_rule}\n" if extra_rule else ""
         prompt = f"""
 请处理下面这条准备自动转发的 Telegram 消息：
-1. 识别新闻或消息主题，用一句简短中文概括。
-2. 删除广告、推广、联系方式、频道引流、无关链接、免责声明、重复标签等噪声。
-3. 保留事实信息、时间、地点、数字、人物、机构名称和原有语义。
+1. 只识别新闻或消息主题，用一句简短中文概括。
+2. 不要总结、改写、清理、压缩或重排原文正文。
+3. 原文正文由程序原样保留并拼接追加模板，AI只负责提取模板变量。
 4. 不要编造原文没有的信息。
 {extra_rule_text}
 即使用户额外规则没有提到输出格式，也必须遵守下面的 JSON 输出要求。
 
 请只返回 JSON，不要包含 Markdown：
-{{"topic":"主题","clean_text":"清理后的正文"}}
+{{"topic":"主题"}}
 """
 
         messages = [
@@ -367,31 +368,36 @@ class AIService(metaclass=Singleton):
                 cleaned = "\n".join(lines)
             data = json.loads(cleaned.strip())
         except json.JSONDecodeError:
-            self.logger.error(f"转发改写AI返回结果不是有效JSON: {result}")
+            self.logger.error(f"转发追加AI返回结果不是有效JSON: {result}")
             return None
 
         topic = str(data.get("topic", "")).strip()
-        clean_text = str(data.get("clean_text", "")).strip()
-        if not clean_text:
-            return None
 
         template = append_template.strip() if append_template else ""
         try:
-            addition = template.format(topic=topic, clean_text=clean_text).strip() if template else ""
+            addition = template.format(
+                topic=topic,
+                clean_text=original_text,
+                original_text=original_text,
+                source_text=original_text
+            ).strip() if template else ""
         except (KeyError, ValueError) as e:
-            self.logger.error(f"转发改写模板格式错误: {e}")
+            self.logger.error(f"转发追加模板格式错误: {e}")
             addition = template
 
         if not addition:
-            final_text = clean_text
+            final_text = original_text
         elif "{clean_text" in template:
             final_text = addition
+        elif "{original_text" in template or "{source_text" in template:
+            final_text = addition
         else:
-            final_text = f"{clean_text}\n\n{addition}"
+            final_text = f"{original_text}\n\n{addition}"
 
         return {
             "topic": topic,
-            "clean_text": clean_text,
+            "clean_text": original_text,
+            "original_text": original_text,
             "addition": addition,
             "final_text": final_text
         }

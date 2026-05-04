@@ -871,10 +871,10 @@ class ConfigWizard(metaclass=Singleton):
                     {
                         "name": "forward_rewrite_enabled",
                         "type": "checkbox",
-                        "label": "启用智能改写",
+                        "label": "启用智能追加",
                         "required": False,
                         "default": False,
-                        "help": "开启后会先让AI清理广告、识别主题，再转发。AI失败时不会发原文，会进入转发列表等待重试。"
+                        "help": "开启后原文正文保持不变，AI只提取主题等变量，再追加你的模板内容。AI失败时不会发原文，会进入转发列表等待重试。"
                     },
                     {
                         "name": "forward_rewrite_template",
@@ -882,27 +882,27 @@ class ConfigWizard(metaclass=Singleton):
                         "label": "转发文案模板",
                         "required": False,
                         "rows": 3,
-                        "placeholder": "{clean_text}\n\n更多{topic}资讯，请关注 @your_channel",
-                        "help": "可写完整文案，也可只写要追加的内容。包含 {clean_text} 时按完整文案发送；不包含时会自动追加到清理后的正文后面。{topic}=AI识别的主题。",
+                        "placeholder": "{original_text}\n\n更多{topic}资讯，请关注 @your_channel",
+                        "help": "建议只写要追加的内容，例如“更多{topic}资讯，请关注 @your_channel”。程序会自动把它追加到原文后面。也可以用 {original_text} 或 {clean_text} 表示原文。",
                         "examples": [
-                            "{clean_text}\n\n更多{topic}资讯，请关注 @your_channel",
-                            "{clean_text}\n\n整理发布：我的频道",
-                            "{clean_text}\n\n关注我们，获取更多{topic}消息。"
+                            "更多{topic}资讯，请关注 @your_channel",
+                            "整理发布：我的频道",
+                            "{original_text}\n\n关注我们，获取更多{topic}消息。"
                         ],
                         "conditional": {"forward_rewrite_enabled": True}
                     },
                     {
                         "name": "forward_rewrite_prompt",
                         "type": "textarea",
-                        "label": "自定义清理规则",
+                        "label": "主题提取提示词",
                         "required": False,
                         "rows": 3,
-                        "placeholder": "例：删除原文里的广告、联系方式、链接、邀请进群话术；保留新闻事实、时间、地点、数字和人名。",
-                        "help": "告诉AI怎么清理原文。不会作为追加内容发送。留空会使用默认广告清理规则。",
+                        "placeholder": "例：提取新闻主题，不要总结正文；主题尽量控制在8个字以内。",
+                        "help": "告诉AI如何提取 {topic}。不会改写原文，也不会作为追加内容发送。留空会使用默认主题提取规则。",
                         "examples": [
-                            "删除广告、推广链接、联系方式，只保留新闻正文。",
-                            "保留时间、地点、人名、公司名、金额、数字；删除无关表情和营销话术。",
-                            "把内容整理成简洁中文，不要添加原文没有的信息。"
+                            "只提取新闻主题，不要总结正文。",
+                            "主题控制在8个字以内，例如：股市行情、国际冲突、科技新品。",
+                            "如果原文是公告，主题写成公告核心事件。"
                         ],
                         "conditional": {"forward_rewrite_enabled": True}
                     }
@@ -1304,7 +1304,7 @@ class ConfigWizard(metaclass=Singleton):
             if is_enabled(data.get("enhanced_forward")):
                 summary_parts.append("✓ 增强转发")
             if is_enabled(data.get("forward_rewrite_enabled")):
-                summary_parts.append("✓ 智能改写")
+                summary_parts.append("✓ 智能追加")
 
         return "\n".join(summary_parts)
 

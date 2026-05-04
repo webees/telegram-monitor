@@ -195,7 +195,7 @@ createVueApp({
                 {label: '适用范围', value: this.list(config.chats)},
                 {label: '自动转发', value: this.yesNo(config.auto_forward)},
                 {label: '转发目标', value: this.list(config.forward_targets)},
-                {label: '智能改写', value: this.yesNo(config.forward_rewrite_enabled)},
+                {label: '智能追加', value: this.yesNo(config.forward_rewrite_enabled)},
                 {label: '自动回复', value: this.yesNo(config.reply_enabled)},
                 {label: '执行限制', value: config.max_executions || '无限制'},
                 {label: '转发文案模板', value: config.forward_rewrite_template || '未设置'}

@@ -138,7 +138,7 @@ def test_rewrite_forward_text_keeps_json_contract_for_custom_rule(monkeypatch):
 
     async def fake_completion(messages, *args, **kwargs):
         prompts.append(messages[0]["content"])
-        return '{"topic":"财经","clean_text":"清理后的正文"}'
+        return '{"topic":"财经","clean_text":"AI总结正文"}'
 
     monkeypatch.setattr(service, "_ensure_initialized", lambda: None)
     monkeypatch.setattr(service, "is_configured", lambda: True)
@@ -152,7 +152,9 @@ def test_rewrite_forward_text_keeps_json_contract_for_custom_rule(monkeypatch):
 
     assert "请只返回 JSON" in prompts[0]
     assert "删除联系方式" in prompts[0]
-    assert result["final_text"] == "清理后的正文\n\n更多财经"
+    assert "不要总结、改写、清理、压缩或重排原文正文" in prompts[0]
+    assert result["final_text"] == "原文广告\n\n更多财经"
+    assert result["clean_text"] == "原文广告"
 
     AIService.clear_instance()
 
@@ -162,7 +164,7 @@ def test_rewrite_forward_text_appends_plain_template(monkeypatch):
     service = AIService()
 
     async def fake_completion(messages, *args, **kwargs):
-        return '{"topic":"科技","clean_text":"清理后的正文"}'
+        return '{"topic":"科技","clean_text":"AI总结正文"}'
 
     monkeypatch.setattr(service, "_ensure_initialized", lambda: None)
     monkeypatch.setattr(service, "is_configured", lambda: True)
@@ -170,7 +172,30 @@ def test_rewrite_forward_text_appends_plain_template(monkeypatch):
 
     result = asyncio.run(service.rewrite_forward_text("原文广告", "关注{topic}", ""))
 
-    assert result["final_text"] == "清理后的正文\n\n关注科技"
+    assert result["final_text"] == "原文广告\n\n关注科技"
+
+    AIService.clear_instance()
+
+
+def test_rewrite_forward_text_supports_original_text_variable(monkeypatch):
+    AIService.clear_instance()
+    service = AIService()
+
+    async def fake_completion(messages, *args, **kwargs):
+        return '{"topic":"民生"}'
+
+    monkeypatch.setattr(service, "_ensure_initialized", lambda: None)
+    monkeypatch.setattr(service, "is_configured", lambda: True)
+    monkeypatch.setattr(service, "get_chat_completion", fake_completion)
+
+    result = asyncio.run(service.rewrite_forward_text(
+        "原新闻正文\n第二行",
+        "{original_text}\n\n本频道持续关注{topic}",
+        ""
+    ))
+
+    assert result["final_text"] == "原新闻正文\n第二行\n\n本频道持续关注民生"
+    assert result["original_text"] == "原新闻正文\n第二行"
 
     AIService.clear_instance()
 
