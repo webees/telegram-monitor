@@ -62,6 +62,9 @@ class BaseMonitorConfig:
     enhanced_forward: bool = False
     max_download_size_mb: Optional[float] = None
     download_folder: str = "data/dl"
+    forward_rewrite_enabled: bool = False
+    forward_rewrite_template: str = ""
+    forward_rewrite_prompt: str = ""
     priority: int = 50
     active: bool = True
     execution_mode: str = "merge"
@@ -552,6 +555,7 @@ class TelegramMessage:
     is_forwarded: bool = False
     forward_from_channel_id: Optional[int] = None
     reply_to_message_id: Optional[int] = None
+    grouped_id: Optional[int] = None
     
     @property
     def text_lower(self) -> str:
@@ -645,7 +649,8 @@ class TelegramMessage:
             buttons=buttons,
             is_forwarded=is_forwarded,
             forward_from_channel_id=forward_from_channel_id,
-            reply_to_message_id=message.reply_to_msg_id
+            reply_to_message_id=message.reply_to_msg_id,
+            grouped_id=getattr(message, 'grouped_id', None)
         )
 
 
@@ -658,4 +663,6 @@ class MessageEvent:
     
     @property
     def unique_id(self) -> str:
+        if self.message.grouped_id:
+            return f"{self.account_id}_{self.message.chat_id}_album_{self.message.grouped_id}"
         return f"{self.account_id}_{self.message.chat_id}_{self.message.message_id}"

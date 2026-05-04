@@ -24,6 +24,7 @@ from .log import get_logger
 
 
 class MonitorEngine(metaclass=Singleton):
+    ALBUM_GATHER_DELAY_SECONDS = 1.0
 
     def __init__(self):
         self.monitors: Dict[str, List[BaseMonitor]] = {}
@@ -144,6 +145,9 @@ class MonitorEngine(metaclass=Singleton):
                                 auto_forward=config_data.get('auto_forward', False),
                                 forward_targets=config_data.get('forward_targets', []),
                                 enhanced_forward=config_data.get('enhanced_forward', False),
+                                forward_rewrite_enabled=config_data.get('forward_rewrite_enabled', False),
+                                forward_rewrite_template=config_data.get('forward_rewrite_template', ''),
+                                forward_rewrite_prompt=config_data.get('forward_rewrite_prompt', ''),
                                 reply_enabled=config_data.get('reply_enabled', False),
                                 reply_texts=config_data.get('reply_texts', []),
                                 reply_delay_min=config_data.get('reply_delay_min', 0),
@@ -178,6 +182,9 @@ class MonitorEngine(metaclass=Singleton):
                                 forward_targets=config_data.get('forward_targets', []),
                                 enhanced_forward=config_data.get('enhanced_forward', False),
                                 max_download_size_mb=config_data.get('max_download_size_mb'),
+                                forward_rewrite_enabled=config_data.get('forward_rewrite_enabled', False),
+                                forward_rewrite_template=config_data.get('forward_rewrite_template', ''),
+                                forward_rewrite_prompt=config_data.get('forward_rewrite_prompt', ''),
                                 max_executions=config_data.get('max_executions'),
                                 priority=config_data.get('priority', 50),
                                 execution_mode=config_data.get('execution_mode', 'merge'),
@@ -206,6 +213,9 @@ class MonitorEngine(metaclass=Singleton):
                                 auto_forward=config_data.get('auto_forward', False),
                                 forward_targets=config_data.get('forward_targets', []),
                                 enhanced_forward=config_data.get('enhanced_forward', False),
+                                forward_rewrite_enabled=config_data.get('forward_rewrite_enabled', False),
+                                forward_rewrite_template=config_data.get('forward_rewrite_template', ''),
+                                forward_rewrite_prompt=config_data.get('forward_rewrite_prompt', ''),
                                 reply_enabled=config_data.get('reply_enabled', False),
                                 reply_texts=config_data.get('reply_texts', []),
                                 reply_delay_min=config_data.get('reply_delay_min', 0),
@@ -237,6 +247,9 @@ class MonitorEngine(metaclass=Singleton):
                                 auto_forward=config_data.get('auto_forward', False),
                                 forward_targets=config_data.get('forward_targets', []),
                                 enhanced_forward=config_data.get('enhanced_forward', False),
+                                forward_rewrite_enabled=config_data.get('forward_rewrite_enabled', False),
+                                forward_rewrite_template=config_data.get('forward_rewrite_template', ''),
+                                forward_rewrite_prompt=config_data.get('forward_rewrite_prompt', ''),
                                 reply_enabled=config_data.get('reply_enabled', False),
                                 reply_texts=config_data.get('reply_texts', []),
                                 reply_delay_min=config_data.get('reply_delay_min', 0),
@@ -408,6 +421,7 @@ class MonitorEngine(metaclass=Singleton):
             'email_notify': False,
             'forward_targets': set(),
             'enhanced_forward': False,
+            'forward_rewrite': {},
             'log_files': set(),
             'reply_enabled': False,
             'reply_texts': [],
@@ -477,6 +491,12 @@ class MonitorEngine(metaclass=Singleton):
             all_actions['forward_targets'].update(config.forward_targets)
             if config.enhanced_forward:
                 all_actions['enhanced_forward'] = True
+            if getattr(config, 'forward_rewrite_enabled', False):
+                all_actions['forward_rewrite'] = {
+                    "enabled": True,
+                    "template": getattr(config, 'forward_rewrite_template', ''),
+                    "prompt": getattr(config, 'forward_rewrite_prompt', '')
+                }
 
         if config.log_file:
             all_actions['log_files'].add(config.log_file)
@@ -520,6 +540,11 @@ class MonitorEngine(metaclass=Singleton):
             'email_notify': config.email_notify,
             'forward_targets': set(config.forward_targets) if config.auto_forward else set(),
             'enhanced_forward': config.enhanced_forward if config.auto_forward else False,
+            'forward_rewrite': {
+                "enabled": True,
+                "template": getattr(config, 'forward_rewrite_template', ''),
+                "prompt": getattr(config, 'forward_rewrite_prompt', '')
+            } if config.auto_forward and getattr(config, 'forward_rewrite_enabled', False) else {},
             'log_files': {config.log_file} if config.log_file else set(),
             'reply_enabled': False,
             'reply_texts': [],
@@ -588,7 +613,8 @@ class MonitorEngine(metaclass=Singleton):
                         await service.forward_message_enhanced(
                             message=message,
                             account=account,
-                            target_ids=target_ids
+                            target_ids=target_ids,
+                            rewrite_options=actions.get('forward_rewrite')
                         )
                         self.logger.info(f"增强转发消息到 {len(target_ids)} 个目标（去重后）")
                     else:
@@ -597,7 +623,12 @@ class MonitorEngine(metaclass=Singleton):
                         service = EnhancedForwardService()
                         for target_id in target_ids:
                             try:
-                                success = await service.copy_message_without_source(client, message, target_id)
+                                success = await service.copy_message_without_source(
+                                    client,
+                                    message,
+                                    target_id,
+                                    actions.get('forward_rewrite')
+                                )
                                 if success:
                                     self.logger.info(f"无来源标记复制消息到: {target_id}")
                                 else:
@@ -858,6 +889,9 @@ class MonitorEngine(metaclass=Singleton):
                 account_id=account.account_id,
                 message=telegram_message
             )
+
+            if telegram_message.grouped_id:
+                await asyncio.sleep(self.ALBUM_GATHER_DELAY_SECONDS)
 
             if self._is_message_processed(message_event):
                 return

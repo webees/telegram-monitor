@@ -5,6 +5,7 @@ AI服务
 
 import asyncio
 import threading
+import json
 from typing import Optional, List, Dict, Any
 from openai import OpenAI
 
@@ -317,6 +318,69 @@ class AIService(metaclass=Singleton):
         except Exception as e:
             self.logger.error(f"AI分析内容失败: {e}")
             return None
+
+    async def rewrite_forward_text(
+        self,
+        text: str,
+        append_template: str = "",
+        custom_prompt: str = ""
+    ) -> Optional[Dict[str, str]]:
+        self._ensure_initialized()
+
+        if not text or not text.strip() or not self.is_configured():
+            return None
+
+        prompt = custom_prompt or """
+请处理下面这条准备自动转发的 Telegram 消息：
+1. 识别新闻或消息主题，用一句简短中文概括。
+2. 删除广告、推广、联系方式、频道引流、无关链接、免责声明、重复标签等噪声。
+3. 保留事实信息、时间、地点、数字、人物、机构名称和原有语义。
+4. 不要编造原文没有的信息。
+
+请只返回 JSON，不要包含 Markdown：
+{"topic":"主题","clean_text":"清理后的正文"}
+"""
+
+        messages = [
+            {
+                "role": "user",
+                "content": f"{prompt}\n\n原始消息：\n{text}"
+            }
+        ]
+
+        result = await self.get_chat_completion(messages)
+        if not result:
+            return None
+
+        try:
+            cleaned = result.strip()
+            if cleaned.startswith("```json"):
+                cleaned = cleaned[7:]
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3]
+            data = json.loads(cleaned.strip())
+        except json.JSONDecodeError:
+            self.logger.error(f"转发改写AI返回结果不是有效JSON: {result}")
+            return None
+
+        topic = str(data.get("topic", "")).strip()
+        clean_text = str(data.get("clean_text", "")).strip()
+        if not clean_text:
+            return None
+
+        try:
+            addition = append_template.format(topic=topic, clean_text=clean_text).strip() if append_template else ""
+        except (KeyError, ValueError) as e:
+            self.logger.error(f"转发改写模板格式错误: {e}")
+            addition = append_template.strip()
+        final_text = f"{clean_text}\n\n{addition}" if addition else clean_text
+
+        return {
+            "topic": topic,
+            "clean_text": clean_text,
+            "addition": addition,
+            "final_text": final_text
+        }
     
     def is_configured(self) -> bool:
         self._ensure_initialized()
@@ -328,4 +392,4 @@ class AIService(metaclass=Singleton):
             "api_key_set": bool(config.OPENAI_API_KEY),
             "model": config.OPENAI_MODEL,
             "base_url": config.OPENAI_BASE_URL
-        } 
+        }

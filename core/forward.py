@@ -17,6 +17,7 @@ from .log import get_logger
 
 
 class EnhancedForwardService(metaclass=Singleton):
+    ALBUM_LOOKUP_WINDOW = 10
     
     def __init__(self):
         self.logger = get_logger(__name__)
@@ -28,21 +29,22 @@ class EnhancedForwardService(metaclass=Singleton):
         account: Account,
         target_ids: List[int],
         max_download_size_mb: Optional[float] = None,
-        download_folder: str = "data/dl"
+        download_folder: str = "data/dl",
+        rewrite_options: Optional[Dict[str, str]] = None
     ) -> Dict[int, bool]:
         results = {}
         client = account.client
         
         for target_id in target_ids:
             try:
-                success = await self.copy_message_without_source(client, message, target_id)
+                success = await self.copy_message_without_source(client, message, target_id, rewrite_options)
                 if success:
                     results[target_id] = True
                     self.logger.info(f"无来源标记复制成功到 {target_id}")
                     continue
                 
                 success = await self._download_resend(
-                    client, message, target_id, max_download_size_mb, download_folder
+                    client, message, target_id, max_download_size_mb, download_folder, rewrite_options
                 )
                 results[target_id] = success
                 
@@ -56,13 +58,30 @@ class EnhancedForwardService(metaclass=Singleton):
         self, 
         client: TelegramClient, 
         message: TelegramMessage, 
-        target_id: int
+        target_id: int,
+        rewrite_options: Optional[Dict[str, str]] = None
     ) -> bool:
         try:
             original_message = await client.get_messages(message.chat_id, ids=message.message_id)
             if not original_message:
                 self.logger.error(f"找不到原始消息: chat={message.chat_id}, message={message.message_id}")
                 return False
+
+            if message.grouped_id or getattr(original_message, 'grouped_id', None):
+                album_messages = await self._get_album_messages(client, message, original_message)
+                if len(album_messages) > 1:
+                    await self._send_album_without_source(client, target_id, album_messages, rewrite_options)
+                    self.logger.info(f"无来源标记复制媒体组到 {target_id}: {len(album_messages)} 条")
+                    return True
+
+            rewritten_text = await self._rewrite_text_if_enabled(message.text, rewrite_options)
+            if rewritten_text and rewritten_text != message.text:
+                if getattr(original_message, 'media', None):
+                    await client.send_file(target_id, original_message.media, caption=rewritten_text)
+                else:
+                    await client.send_message(target_id, rewritten_text)
+                self.logger.info(f"智能改写后复制消息到 {target_id}")
+                return True
 
             await client.send_message(target_id, original_message)
             return True
@@ -77,6 +96,75 @@ class EnhancedForwardService(metaclass=Singleton):
         except Exception as e:
             self.logger.error(f"复制消息失败: {e}")
             return False
+
+    async def _get_album_messages(self, client: TelegramClient, message: TelegramMessage, original_message) -> List:
+        grouped_id = message.grouped_id or getattr(original_message, 'grouped_id', None)
+        if not grouped_id:
+            return [original_message]
+
+        min_id = max(0, message.message_id - self.ALBUM_LOOKUP_WINDOW)
+        max_id = message.message_id + self.ALBUM_LOOKUP_WINDOW
+        try:
+            nearby_messages = await client.get_messages(
+                message.chat_id,
+                limit=self.ALBUM_LOOKUP_WINDOW * 2 + 1,
+                min_id=min_id,
+                max_id=max_id
+            )
+        except TypeError:
+            nearby_messages = await client.get_messages(message.chat_id, limit=self.ALBUM_LOOKUP_WINDOW * 2)
+
+        nearby_messages = nearby_messages or []
+        album_messages = [
+            item for item in nearby_messages
+            if getattr(item, 'grouped_id', None) == grouped_id and getattr(item, 'media', None)
+        ]
+
+        if not album_messages and getattr(original_message, 'media', None):
+            album_messages = [original_message]
+
+        return sorted(album_messages, key=lambda item: item.id)
+
+    async def _send_album_without_source(
+        self,
+        client: TelegramClient,
+        target_id: int,
+        album_messages: List,
+        rewrite_options: Optional[Dict[str, str]] = None
+    ):
+        files = [item.media for item in album_messages if getattr(item, 'media', None)]
+        captions = [getattr(item, 'message', '') or '' for item in album_messages]
+        if not files:
+            raise ValueError("媒体组中没有可发送的媒体")
+
+        first_caption = next((caption for caption in captions if caption), "")
+        rewritten_text = await self._rewrite_text_if_enabled(first_caption, rewrite_options)
+        if rewritten_text:
+            captions = [rewritten_text] + [""] * (len(files) - 1)
+
+        await client.send_file(target_id, files, caption=captions)
+
+    async def _rewrite_text_if_enabled(self, text: str, rewrite_options: Optional[Dict[str, str]] = None) -> Optional[str]:
+        rewrite_options = rewrite_options or {}
+        if not rewrite_options.get("enabled") or not text or not text.strip():
+            return None
+
+        try:
+            from .ai import AIService
+
+            ai_service = AIService()
+            result = await ai_service.rewrite_forward_text(
+                text=text,
+                append_template=rewrite_options.get("template", ""),
+                custom_prompt=rewrite_options.get("prompt", "")
+            )
+            if result and result.get("final_text"):
+                self.logger.info(f"转发智能改写完成，主题: {result.get('topic', '未知')}")
+                return result["final_text"]
+        except Exception as e:
+            self.logger.error(f"转发智能改写失败，使用原文转发: {e}")
+
+        return None
     
     async def _download_resend(
         self,
@@ -84,7 +172,8 @@ class EnhancedForwardService(metaclass=Singleton):
         message: TelegramMessage,
         target_id: int,
         max_download_size_mb: Optional[float],
-        download_folder: str
+        download_folder: str,
+        rewrite_options: Optional[Dict[str, str]] = None
     ) -> bool:
         try:
             if message.media and message.media.file_size_mb:
@@ -98,9 +187,9 @@ class EnhancedForwardService(metaclass=Singleton):
             download_path.mkdir(parents=True, exist_ok=True)
             
             if message.media and message.media.has_media:
-                return await self._send_media(client, message, target_id, download_path)
+                return await self._send_media(client, message, target_id, download_path, rewrite_options)
             else:
-                return await self._send_text(client, message, target_id)
+                return await self._send_text(client, message, target_id, rewrite_options)
                 
         except Exception as e:
             self.logger.error(f"下载重发失败: {e}")
@@ -111,7 +200,8 @@ class EnhancedForwardService(metaclass=Singleton):
         client: TelegramClient,
         message: TelegramMessage,
         target_id: int,
-        download_path: Path
+        download_path: Path,
+        rewrite_options: Optional[Dict[str, str]] = None
     ) -> bool:
         downloaded_path = None
         try:
@@ -130,7 +220,7 @@ class EnhancedForwardService(metaclass=Singleton):
                 self.logger.error("文件下载失败")
                 return False
             
-            caption = message.text if message.text else None
+            caption = await self._rewrite_text_if_enabled(message.text, rewrite_options) or message.text or None
             await client.send_file(target_id, downloaded_path, caption=caption)
             
             self.logger.info(f"文件重发成功到 {target_id}: {file_name}")
@@ -147,11 +237,13 @@ class EnhancedForwardService(metaclass=Singleton):
         self,
         client: TelegramClient,
         message: TelegramMessage,
-        target_id: int
+        target_id: int,
+        rewrite_options: Optional[Dict[str, str]] = None
     ) -> bool:
         try:
             if message.text:
-                await client.send_message(target_id, message.text)
+                text = await self._rewrite_text_if_enabled(message.text, rewrite_options) or message.text
+                await client.send_message(target_id, text)
                 self.logger.info(f"文本消息重发成功到 {target_id}")
                 return True
             return False

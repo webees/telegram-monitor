@@ -1061,6 +1061,21 @@
                     <label class="form-label">转发目标ID</label>
                     <input type="text" class="form-input" name="forward_target_id" placeholder="输入群组或频道ID（多个用逗号分隔）">
                     <div class="form-help">输入要转发到的群组或频道ID，如：-1001234567890,-1009876543210</div>
+
+                    <label class="form-label" style="margin-top: 16px;">
+                        <input type="checkbox" name="forward_rewrite_enabled" id="forward_rewrite_enabled">
+                        启用智能改写
+                    </label>
+                    <div class="form-help">转发前调用AI清理广告并识别主题</div>
+
+                    <div id="forward-rewrite-config" style="display: none; margin-top: 12px;">
+                        <label class="form-label">追加内容模板</label>
+                        <textarea class="form-input" name="forward_rewrite_template" rows="3" placeholder="例如：更多{topic}资讯请关注我的频道"></textarea>
+                        <div class="form-help">支持变量：{topic} 主题，{clean_text} 清理后的正文</div>
+
+                        <label class="form-label" style="margin-top: 12px;">自定义清理规则</label>
+                        <textarea class="form-input" name="forward_rewrite_prompt" rows="3" placeholder="留空则使用默认广告清理规则"></textarea>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -1852,6 +1867,13 @@
             forwardConfig.style.display = 'block';
         } else {
             forwardConfig.style.display = 'none';
+        }
+    });
+
+    document.getElementById('forward_rewrite_enabled')?.addEventListener('change', function() {
+        const rewriteConfig = document.getElementById('forward-rewrite-config');
+        if (rewriteConfig) {
+            rewriteConfig.style.display = this.checked ? 'block' : 'none';
         }
     });
 

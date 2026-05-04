@@ -799,6 +799,9 @@ class WebApp:
             forward_targets: str = Form(""),
             enhanced_forward: bool = Form(False),
             max_download_size: str = Form(""),
+            forward_rewrite_enabled: bool = Form(False),
+            forward_rewrite_template: str = Form(""),
+            forward_rewrite_prompt: str = Form(""),
             edit_mode: bool = Form(False),
             edit_key: str = Form("")
         ):
@@ -816,7 +819,10 @@ class WebApp:
                     auto_forward=auto_forward,
                     forward_targets=target_ids,
                     enhanced_forward=enhanced_forward,
-                    max_download_size_mb=max_size
+                    max_download_size_mb=max_size,
+                    forward_rewrite_enabled=forward_rewrite_enabled,
+                    forward_rewrite_template=forward_rewrite_template,
+                    forward_rewrite_prompt=forward_rewrite_prompt
                 )
                 
                 monitor = monitor_factory.create_monitor(config)
@@ -849,6 +855,9 @@ class WebApp:
             forward_targets: str = Form(""),
             enhanced_forward: bool = Form(False),
             max_download_size: str = Form(""),
+            forward_rewrite_enabled: bool = Form(False),
+            forward_rewrite_template: str = Form(""),
+            forward_rewrite_prompt: str = Form(""),
             confidence_threshold: float = Form(0.7)
         ):
             user = self.get_current_user(request)
@@ -869,6 +878,9 @@ class WebApp:
                              .with_enhanced_forward(enhanced_forward, max_size)
                              .with_confidence_threshold(confidence_threshold)
                              .build())
+                ai_monitor.config.forward_rewrite_enabled = forward_rewrite_enabled
+                ai_monitor.config.forward_rewrite_template = forward_rewrite_template
+                ai_monitor.config.forward_rewrite_prompt = forward_rewrite_prompt
                 
                 monitor_key = f"ai_{ai_prompt[:20]}..."
                 self.monitor_engine.add_monitor(account_id, ai_monitor, monitor_key)
@@ -890,6 +902,9 @@ class WebApp:
             auto_forward: bool = Form(False),
             forward_targets: str = Form(""),
             enhanced_forward: bool = Form(False),
+            forward_rewrite_enabled: bool = Form(False),
+            forward_rewrite_template: str = Form(""),
+            forward_rewrite_prompt: str = Form(""),
             save_folder: str = Form(""),
             min_size: str = Form(""),
             max_size: str = Form(""),
@@ -915,6 +930,9 @@ class WebApp:
                     auto_forward=auto_forward,
                     forward_targets=target_ids,
                     enhanced_forward=enhanced_forward,
+                    forward_rewrite_enabled=forward_rewrite_enabled,
+                    forward_rewrite_template=forward_rewrite_template,
+                    forward_rewrite_prompt=forward_rewrite_prompt,
                     save_folder=save_folder if save_folder else None,
                     min_size_mb=min_size_mb,
                     max_size_mb=max_size_mb
@@ -2227,6 +2245,9 @@ class WebApp:
                         "auto_forward": getattr(monitor.config, 'auto_forward', False),
                         "forward_targets": getattr(monitor.config, 'forward_targets', []),
                         "enhanced_forward": getattr(monitor.config, 'enhanced_forward', False),
+                        "forward_rewrite_enabled": getattr(monitor.config, 'forward_rewrite_enabled', False),
+                        "forward_rewrite_template": getattr(monitor.config, 'forward_rewrite_template', ''),
+                        "forward_rewrite_prompt": getattr(monitor.config, 'forward_rewrite_prompt', ''),
                         "active": getattr(monitor.config, 'active', True),
                         "priority": getattr(monitor.config, 'priority', 50),
                         "execution_mode": getattr(monitor.config, 'execution_mode', 'merge'),

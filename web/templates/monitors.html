@@ -1225,6 +1225,8 @@
                                 <p><strong>自动转发:</strong> ${config.auto_forward ? '已启用' : '已禁用'}</p>
                                 ${config.forward_targets && config.forward_targets.length > 0 ? `<p><strong>转发目标:</strong> ${config.forward_targets.join(', ')}</p>` : ''}
                                 <p><strong>增强转发:</strong> ${config.enhanced_forward ? '已启用' : '已禁用'}</p>
+                                <p><strong>智能改写:</strong> ${config.forward_rewrite_enabled ? '已启用' : '已禁用'}</p>
+                                ${config.forward_rewrite_template ? `<p><strong>追加模板:</strong> ${config.forward_rewrite_template}</p>` : ''}
                                 
                                 <h6 style="color: var(--warning-color); margin: 16px 0 8px;">回复配置</h6>
                                 <p><strong>自动回复:</strong> ${config.reply_enabled ? '已启用' : '已禁用'}</p>

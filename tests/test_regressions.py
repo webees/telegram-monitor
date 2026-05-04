@@ -1,6 +1,7 @@
 import asyncio
 import json
 from datetime import datetime
+from types import SimpleNamespace
 
 from core.account import AccountManager
 from core.forward import EnhancedForwardService
@@ -10,6 +11,7 @@ from core.model import (
     BaseMonitorConfig,
     KeywordConfig,
     MatchType,
+    MessageMedia,
     MessageEvent,
     MessageSender,
     MonitorConfig,
@@ -30,6 +32,18 @@ def make_message(sender=None):
         sender=sender,
         text="hello",
         timestamp=datetime.now(),
+    )
+
+
+def make_album_message(grouped_id=12345):
+    return TelegramMessage(
+        message_id=10,
+        chat_id=20,
+        sender=MessageSender(1),
+        text="caption",
+        timestamp=datetime.now(),
+        media=MessageMedia(has_media=True, media_type="photo"),
+        grouped_id=grouped_id,
     )
 
 
@@ -67,15 +81,22 @@ def test_monitor_config_round_trip_preserves_enum_values():
 
 
 class FakeClient:
-    def __init__(self, original_message):
+    def __init__(self, original_message, nearby_messages=None):
         self.original_message = original_message
+        self.nearby_messages = nearby_messages or []
         self.sent = []
+        self.sent_files = []
 
-    async def get_messages(self, chat_id, ids):
-        return self.original_message
+    async def get_messages(self, chat_id, *args, **kwargs):
+        if "ids" in kwargs:
+            return self.original_message
+        return self.nearby_messages
 
     async def send_message(self, target_id, message):
         self.sent.append((target_id, message))
+
+    async def send_file(self, target_id, files, caption=None):
+        self.sent_files.append((target_id, files, caption))
 
 
 def test_copy_message_without_source_success():
@@ -97,6 +118,66 @@ def test_copy_message_without_source_missing_original_returns_false():
 
     assert ok is False
     assert client.sent == []
+
+
+def test_copy_message_without_source_preserves_album_as_single_send_file_call():
+    service = EnhancedForwardService()
+    first = SimpleNamespace(id=10, grouped_id=555, media="photo-1", message="caption")
+    second = SimpleNamespace(id=11, grouped_id=555, media="photo-2", message="")
+    unrelated = SimpleNamespace(id=12, grouped_id=999, media="photo-3", message="")
+    client = FakeClient(first, nearby_messages=[second, unrelated, first])
+
+    ok = asyncio.run(service.copy_message_without_source(client, make_album_message(grouped_id=555), 99))
+
+    assert ok is True
+    assert client.sent == []
+    assert client.sent_files == [(99, ["photo-1", "photo-2"], ["caption", ""])]
+
+
+def test_grouped_message_unique_id_deduplicates_album_parts():
+    first = MessageEvent(account_id="acc", message=make_album_message(grouped_id=555))
+    second = MessageEvent(account_id="acc", message=make_album_message(grouped_id=555))
+    second.message.message_id = 11
+
+    assert first.unique_id == second.unique_id
+
+
+def test_copy_message_without_source_rewrites_text_when_enabled(monkeypatch):
+    class FakeAIService:
+        async def rewrite_forward_text(self, text, append_template="", custom_prompt=""):
+            return {"topic": "财经", "final_text": "清理后的新闻\n\n我的广告"}
+
+    import core.ai
+
+    monkeypatch.setattr(core.ai, "AIService", FakeAIService)
+    service = EnhancedForwardService()
+    client = FakeClient(SimpleNamespace(media=None))
+    rewrite_options = {"enabled": True, "template": "{topic}", "prompt": ""}
+
+    ok = asyncio.run(service.copy_message_without_source(client, make_message(MessageSender(1)), 99, rewrite_options))
+
+    assert ok is True
+    assert client.sent == [(99, "清理后的新闻\n\n我的广告")]
+
+
+def test_album_rewrite_updates_first_caption_only(monkeypatch):
+    class FakeAIService:
+        async def rewrite_forward_text(self, text, append_template="", custom_prompt=""):
+            return {"topic": "科技", "final_text": "清理后的图集说明"}
+
+    import core.ai
+
+    monkeypatch.setattr(core.ai, "AIService", FakeAIService)
+    service = EnhancedForwardService()
+    first = SimpleNamespace(id=10, grouped_id=555, media="photo-1", message="原始广告图集说明")
+    second = SimpleNamespace(id=11, grouped_id=555, media="photo-2", message="")
+    client = FakeClient(first, nearby_messages=[first, second])
+    rewrite_options = {"enabled": True, "template": "", "prompt": ""}
+
+    ok = asyncio.run(service.copy_message_without_source(client, make_album_message(grouped_id=555), 99, rewrite_options))
+
+    assert ok is True
+    assert client.sent_files == [(99, ["photo-1", "photo-2"], ["清理后的图集说明", ""])]
 
 
 def test_account_save_writes_valid_json_atomically(tmp_path):

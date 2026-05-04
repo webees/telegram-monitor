@@ -863,6 +863,33 @@ class ConfigWizard(metaclass=Singleton):
                         "required": False,
                         "placeholder": "50",
                         "conditional": {"enhanced_forward": True}
+                    },
+                    {
+                        "name": "forward_rewrite_enabled",
+                        "type": "checkbox",
+                        "label": "启用智能改写",
+                        "required": False,
+                        "default": False,
+                        "help": "转发前调用AI清理广告并识别新闻主题"
+                    },
+                    {
+                        "name": "forward_rewrite_template",
+                        "type": "textarea",
+                        "label": "追加内容模板",
+                        "required": False,
+                        "rows": 3,
+                        "placeholder": "例如：更多{topic}资讯请关注我的频道",
+                        "help": "支持变量：{topic} 主题，{clean_text} 清理后的正文",
+                        "conditional": {"forward_rewrite_enabled": True}
+                    },
+                    {
+                        "name": "forward_rewrite_prompt",
+                        "type": "textarea",
+                        "label": "自定义清理规则",
+                        "required": False,
+                        "rows": 3,
+                        "placeholder": "留空则使用默认广告清理规则",
+                        "conditional": {"forward_rewrite_enabled": True}
                     }
                 ],
                 validation_rules={
@@ -1562,6 +1589,9 @@ class ConfigWizard(metaclass=Singleton):
             forward_targets=forward_targets,
             enhanced_forward=data.get('enhanced_forward', False),
             max_download_size_mb=float(data.get('max_download_size_mb')) if data.get('max_download_size_mb') and data.get('max_download_size_mb').strip() else None,
+            forward_rewrite_enabled=data.get('forward_rewrite_enabled') in (True, "on", "true", "1"),
+            forward_rewrite_template=data.get('forward_rewrite_template', ''),
+            forward_rewrite_prompt=data.get('forward_rewrite_prompt', ''),
             log_file=data.get('log_file') if data.get('log_file') else None,
             max_executions=int(data.get('max_executions')) if data.get('max_executions') else None,
             priority=int(data.get('priority', 50)),
@@ -1837,6 +1867,9 @@ class ConfigWizard(metaclass=Singleton):
                 forward_targets=forward_targets,
                 enhanced_forward=enhanced_forward,
                 max_download_size_mb=max_download_size,
+                forward_rewrite_enabled=data.get('forward_rewrite_enabled') in (True, "on", "true", "1"),
+                forward_rewrite_template=data.get('forward_rewrite_template', ''),
+                forward_rewrite_prompt=data.get('forward_rewrite_prompt', ''),
                 max_executions=max_executions,
                 priority=int(data.get('priority', 50)),
                 execution_mode=data.get('execution_mode', 'merge'),
@@ -1922,7 +1955,11 @@ class ConfigWizard(metaclass=Singleton):
         builder.with_priority(int(data.get('priority', 50)))
         builder.with_execution_mode(data.get('execution_mode', 'merge'))
 
-        return builder.build()
+        config = builder.build()
+        config.forward_rewrite_enabled = data.get('forward_rewrite_enabled') in (True, "on", "true", "1")
+        config.forward_rewrite_template = data.get('forward_rewrite_template', '')
+        config.forward_rewrite_prompt = data.get('forward_rewrite_prompt', '')
+        return config
 
     def _make_button(self, data: Dict[str, Any]) -> ButtonConfig:
         chats_str = data.get("chats", "")
@@ -2047,6 +2084,9 @@ class ConfigWizard(metaclass=Singleton):
             forward_targets=forward_targets,
             enhanced_forward=enhanced_forward,
             max_download_size_mb=max_download_size,
+            forward_rewrite_enabled=data.get('forward_rewrite_enabled') in (True, "on", "true", "1"),
+            forward_rewrite_template=data.get('forward_rewrite_template', ''),
+            forward_rewrite_prompt=data.get('forward_rewrite_prompt', ''),
             max_executions=max_executions,
             priority=int(data.get('priority', 50)),
             execution_mode=data.get('execution_mode', 'merge'),
@@ -2189,6 +2229,9 @@ class ConfigWizard(metaclass=Singleton):
             forward_targets=forward_targets,
             enhanced_forward=enhanced_forward,
             max_download_size_mb=max_download_size,
+            forward_rewrite_enabled=data.get('forward_rewrite_enabled') in (True, "on", "true", "1"),
+            forward_rewrite_template=data.get('forward_rewrite_template', ''),
+            forward_rewrite_prompt=data.get('forward_rewrite_prompt', ''),
             max_executions=max_executions,
             priority=int(data.get('priority', 50)),
             execution_mode=data.get('execution_mode', 'merge'),
@@ -2292,6 +2335,9 @@ class ConfigWizard(metaclass=Singleton):
             forward_targets=forward_targets,
             enhanced_forward=enhanced_forward,
             max_download_size_mb=max_download_size,
+            forward_rewrite_enabled=data.get('forward_rewrite_enabled') in (True, "on", "true", "1"),
+            forward_rewrite_template=data.get('forward_rewrite_template', ''),
+            forward_rewrite_prompt=data.get('forward_rewrite_prompt', ''),
             reply_enabled=reply_enabled,
             reply_texts=reply_texts,
             reply_delay_min=reply_delay_min,

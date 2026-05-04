@@ -29,7 +29,7 @@ class Config:
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_MODEL: str = "gpt-3.5-turbo"
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
-    
+
     EMAIL_SMTP_SERVER: str = "smtp.gmail.com"
     EMAIL_SMTP_PORT: int = 587
     EMAIL_USERNAME: Optional[str] = None
@@ -65,7 +65,6 @@ class Config:
         self.OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
         self.OPENAI_MODEL = os.getenv('OPENAI_MODEL', self.OPENAI_MODEL)
         self.OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', self.OPENAI_BASE_URL)
-        
         self.EMAIL_SMTP_SERVER = os.getenv('EMAIL_SMTP_SERVER', self.EMAIL_SMTP_SERVER)
         self.EMAIL_SMTP_PORT = int(os.getenv('EMAIL_SMTP_PORT', self.EMAIL_SMTP_PORT))
         self.EMAIL_USERNAME = os.getenv('EMAIL_USERNAME')
@@ -143,4 +142,4 @@ class Config:
             "downloads_dir": self.DOWNLOADS_DIR
         }
 
-config = Config() 
+config = Config()
