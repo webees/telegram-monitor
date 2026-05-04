@@ -596,12 +596,17 @@ class MonitorEngine(metaclass=Singleton):
                         self.logger.info(f"增强转发消息到 {len(target_ids)} 个目标（去重后）")
                     else:
                         client = account.client
+                        from .forward import EnhancedForwardService
+                        service = EnhancedForwardService()
                         for target_id in target_ids:
                             try:
-                                await client.forward_messages(target_id, [message.message_id], message.chat_id)
-                                self.logger.info(f"转发消息到: {target_id}")
+                                success = await service.copy_message_without_source(client, message, target_id)
+                                if success:
+                                    self.logger.info(f"无来源标记复制消息到: {target_id}")
+                                else:
+                                    self.logger.error(f"无来源标记复制消息到 {target_id} 失败")
                             except Exception as e:
-                                self.logger.error(f"转发消息到 {target_id} 失败: {e}")
+                                self.logger.error(f"无来源标记复制消息到 {target_id} 失败: {e}")
 
             for log_file in actions['log_files']:
                 try:

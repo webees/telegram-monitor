@@ -1,6 +1,6 @@
 """
 增强转发服务
-当直接转发失败时，下载文件到本地再重新发送
+默认复制消息以避免显示“转发自”，增强模式下复制失败时下载文件到本地再重新发送
 """
 
 import os
@@ -35,10 +35,10 @@ class EnhancedForwardService(metaclass=Singleton):
         
         for target_id in target_ids:
             try:
-                success = await self._direct_forward(client, message, target_id)
+                success = await self.copy_message_without_source(client, message, target_id)
                 if success:
                     results[target_id] = True
-                    self.logger.info(f"直接转发成功到 {target_id}")
+                    self.logger.info(f"无来源标记复制成功到 {target_id}")
                     continue
                 
                 success = await self._download_resend(
@@ -52,25 +52,30 @@ class EnhancedForwardService(metaclass=Singleton):
         
         return results
     
-    async def _direct_forward(
+    async def copy_message_without_source(
         self, 
         client: TelegramClient, 
         message: TelegramMessage, 
         target_id: int
     ) -> bool:
         try:
-            await client.forward_messages(target_id, [message.message_id], message.chat_id)
+            original_message = await client.get_messages(message.chat_id, ids=message.message_id)
+            if not original_message:
+                self.logger.error(f"找不到原始消息: chat={message.chat_id}, message={message.message_id}")
+                return False
+
+            await client.send_message(target_id, original_message)
             return True
             
         except (ChatForwardsRestrictedError, MediaEmptyError) as e:
-            self.logger.info(f"直接转发到 {target_id} 受限制: {e}")
+            self.logger.info(f"复制消息到 {target_id} 受限制: {e}")
             return False
         except FloodWaitError as e:
-            self.logger.warning(f"转发频率限制，等待 {e.seconds} 秒")
+            self.logger.warning(f"复制消息频率限制，等待 {e.seconds} 秒")
             await asyncio.sleep(e.seconds)
             return False
         except Exception as e:
-            self.logger.error(f"直接转发失败: {e}")
+            self.logger.error(f"复制消息失败: {e}")
             return False
     
     async def _download_resend(
@@ -173,4 +178,4 @@ class EnhancedForwardService(metaclass=Singleton):
         return {
             "temp_files_count": len(self.temp_downloads),
             "temp_files": list(self.temp_downloads.keys())
-        } 
+        }
