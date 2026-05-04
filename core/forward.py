@@ -6,10 +6,12 @@
 import os
 import asyncio
 import shutil
+import re
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError, ChatForwardsRestrictedError, MediaEmptyError
+from telethon.tl.types import MessageEntityMention, MessageEntityUrl
 
 from .model import TelegramMessage, Account, is_enabled
 from .singleton import Singleton
@@ -22,6 +24,9 @@ class RewriteUnavailable(Exception):
 
 class EnhancedForwardService(metaclass=Singleton):
     ALBUM_LOOKUP_WINDOW = 10
+    URL_RE = re.compile(r"https?://[^\s<>'\"]+", re.IGNORECASE)
+    MENTION_RE = re.compile(r"(?<![\w@])@[A-Za-z0-9_]{5,32}\b")
+    URL_TRAILING_PUNCTUATION = ".,;:!?)，。！？；：）】》」』"
     
     def __init__(self):
         self.logger = get_logger(__name__)
@@ -92,9 +97,9 @@ class EnhancedForwardService(metaclass=Singleton):
             rewritten_text = await self._rewrite_text_if_enabled(message.text, rewrite_options)
             if rewritten_text is not None:
                 if getattr(original_message, 'media', None):
-                    await client.send_file(target_id, original_message.media, caption=rewritten_text)
+                    await self._send_file(client, target_id, original_message.media, caption=rewritten_text)
                 else:
-                    await client.send_message(target_id, rewritten_text)
+                    await self._send_message(client, target_id, rewritten_text)
                     self.logger.info(f"智能追加后复制消息到 {target_id}")
                 return True
 
@@ -162,7 +167,7 @@ class EnhancedForwardService(metaclass=Singleton):
         if rewritten_text is not None:
             captions = [rewritten_text] + [""] * (len(files) - 1)
 
-        await client.send_file(target_id, files, caption=captions)
+        await self._send_file(client, target_id, files, caption=captions)
 
     async def _rewrite_text_if_enabled(self, text: str, rewrite_options: Optional[Dict[str, str]] = None) -> Optional[str]:
         rewrite_options = rewrite_options or {}
@@ -246,7 +251,7 @@ class EnhancedForwardService(metaclass=Singleton):
                 self.logger.error("文件下载失败")
                 return False
             
-            await client.send_file(target_id, downloaded_path, caption=caption)
+            await self._send_file(client, target_id, downloaded_path, caption=caption)
             
             self.logger.info(f"文件重发成功到 {target_id}: {file_name}")
             return True
@@ -275,7 +280,7 @@ class EnhancedForwardService(metaclass=Singleton):
                 text = await self._rewrite_text_if_enabled(message.text, rewrite_options)
                 if text is None:
                     text = message.text
-                await client.send_message(target_id, text)
+                await self._send_message(client, target_id, text)
                 self.logger.info(f"文本消息重发成功到 {target_id}")
                 return True
             return False
@@ -308,3 +313,52 @@ class EnhancedForwardService(metaclass=Singleton):
             "temp_files_count": len(self.temp_downloads),
             "temp_files": list(self.temp_downloads.keys())
         }
+
+    async def _send_message(self, client: TelegramClient, target_id: int, text: str):
+        entities = self._clickable_entities(text)
+        if entities:
+            await client.send_message(target_id, text, formatting_entities=entities)
+            return
+        await client.send_message(target_id, text)
+
+    async def _send_file(self, client: TelegramClient, target_id: int, files, caption=None):
+        entities = self._caption_entities(caption)
+        if entities:
+            await client.send_file(target_id, files, caption=caption, formatting_entities=entities)
+            return
+        await client.send_file(target_id, files, caption=caption)
+
+    def _caption_entities(self, caption):
+        if isinstance(caption, list):
+            entities = [self._clickable_entities(item) or [] for item in caption]
+            return entities if any(entities) else None
+        return self._clickable_entities(caption)
+
+    def _clickable_entities(self, text: Optional[str]):
+        if not text:
+            return None
+
+        spans = []
+        for match in self.URL_RE.finditer(text):
+            start, end = match.span()
+            while end > start and text[end - 1] in self.URL_TRAILING_PUNCTUATION:
+                end -= 1
+            if end > start:
+                spans.append((start, end, MessageEntityUrl))
+
+        for match in self.MENTION_RE.finditer(text):
+            start, end = match.span()
+            if not any(start < span_end and end > span_start for span_start, span_end, _ in spans):
+                spans.append((start, end, MessageEntityMention))
+
+        if not spans:
+            return None
+
+        return [
+            entity(offset=self._utf16_length(text[:start]), length=self._utf16_length(text[start:end]))
+            for start, end, entity in sorted(spans, key=lambda item: (item[0], item[1]))
+        ]
+
+    @staticmethod
+    def _utf16_length(text: str) -> int:
+        return len(text.encode("utf-16-le")) // 2

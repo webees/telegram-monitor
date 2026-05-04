@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from fastapi import HTTPException
+from telethon.tl.types import MessageEntityMention, MessageEntityUrl
 
 from core.account import AccountManager
 from core.ai import AIService
@@ -212,11 +213,30 @@ class FakeClient:
             return self.original_message
         return self.nearby_messages
 
-    async def send_message(self, target_id, message):
-        self.sent.append((target_id, message))
+    async def send_message(self, target_id, message, **kwargs):
+        self.sent.append((target_id, message, kwargs) if kwargs else (target_id, message))
 
-    async def send_file(self, target_id, files, caption=None):
-        self.sent_files.append((target_id, files, caption))
+    async def send_file(self, target_id, files, caption=None, **kwargs):
+        self.sent_files.append((target_id, files, caption, kwargs) if kwargs else (target_id, files, caption))
+
+
+def utf16_len(text):
+    return len(text.encode("utf-16-le")) // 2
+
+
+def test_clickable_entities_use_telegram_utf16_offsets():
+    service = EnhancedForwardService()
+    text = "📣 订阅灰产重要资讯\n🔗 https://t.me/ANjie_16888\n\n✅ 【投稿爆料】 @Ye90997181"
+
+    entities = service._clickable_entities(text)
+
+    url_start = text.index("https://")
+    mention_start = text.index("@Ye90997181")
+    assert [type(entity) for entity in entities] == [MessageEntityUrl, MessageEntityMention]
+    assert entities[0].offset == utf16_len(text[:url_start])
+    assert entities[0].length == utf16_len("https://t.me/ANjie_16888")
+    assert entities[1].offset == utf16_len(text[:mention_start])
+    assert entities[1].length == utf16_len("@Ye90997181")
 
 
 def test_copy_message_without_source_success():
@@ -290,6 +310,32 @@ def test_copy_message_without_source_rewrites_text_when_enabled(monkeypatch):
 
     assert ok is True
     assert client.sent == [(99, "清理后的新闻\n\n我的广告")]
+
+
+def test_copy_message_without_source_marks_appended_links_clickable(monkeypatch):
+    final_text = "原文\n\n📣 订阅\n🔗 https://t.me/ANjie_16888\n✅ @Ye90997181"
+
+    class FakeAIService:
+        async def rewrite_forward_text(self, text, append_template="", custom_prompt=""):
+            return {"topic": "资讯", "final_text": final_text}
+
+    import core.ai
+
+    monkeypatch.setattr(core.ai, "AIService", FakeAIService)
+    service = EnhancedForwardService()
+    client = FakeClient(SimpleNamespace(media=None))
+
+    ok = asyncio.run(service.copy_message_without_source(
+        client,
+        make_message(MessageSender(1)),
+        99,
+        {"enabled": True, "template": "{topic}", "prompt": ""}
+    ))
+
+    assert ok is True
+    sent_entities = client.sent[0][2]["formatting_entities"]
+    assert client.sent[0][:2] == (99, final_text)
+    assert [type(entity) for entity in sent_entities] == [MessageEntityUrl, MessageEntityMention]
 
 
 def test_copy_message_without_source_blocks_original_when_rewrite_fails(monkeypatch):
