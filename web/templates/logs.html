@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}程序日志 - TG监控系统{% endblock %}
-{% block page_title %}程序日志{% endblock %}
+{% block title %}运行日志{% endblock %}
+{% block page_title %}运行日志{% endblock %}
 {% block page_subtitle %}实时查看系统运行日志{% endblock %}
 
 
@@ -349,7 +349,7 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `tg_monitor_logs_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}.log`;
+                a.download = `system_logs_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}.log`;
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);

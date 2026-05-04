@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}监控器管理 - TG监控系统{% endblock %}
+{% block title %}规则{% endblock %}
 
-{% block page_title %}监控器管理{% endblock %}
-{% block page_subtitle %}配置和管理您的消息监控规则{% endblock %}
+{% block page_title %}规则{% endblock %}
+{% block page_subtitle %}配置消息处理规则{% endblock %}
 
 
 {% block content %}
@@ -22,7 +22,7 @@
         <div class="ml-auto flex gap-2">
             <button class="btn btn-primary" onclick="createNewMonitor()">
                 <i class="bi bi-plus-lg"></i>
-                创建监控器
+                创建规则
             </button>
         </div>
     </div>
@@ -35,32 +35,32 @@
     </div>
     <div class="monitor-type-tag">
         <i class="bi bi-search"></i>
-        <span>关键词监控</span>
+        <span>关键词规则</span>
         <span class="monitor-type-count">-</span>
     </div>
     <div class="monitor-type-tag">
         <i class="bi bi-file-earmark"></i>
-        <span>文件监控</span>
+        <span>文件规则</span>
         <span class="monitor-type-count">-</span>
     </div>
     <div class="monitor-type-tag">
         <i class="bi bi-hand-index"></i>
-        <span>按钮监控</span>
+        <span>按钮规则</span>
         <span class="monitor-type-count">-</span>
     </div>
     <div class="monitor-type-tag">
         <i class="bi bi-image"></i>
-        <span>图片按钮监控</span>
+        <span>图片按钮规则</span>
         <span class="monitor-type-count">-</span>
     </div>
     <div class="monitor-type-tag">
         <i class="bi bi-cpu"></i>
-        <span>AI监控</span>
+        <span>AI规则</span>
         <span class="monitor-type-count">-</span>
     </div>
     <div class="monitor-type-tag">
         <i class="bi bi-globe"></i>
-        <span>全量监控</span>
+        <span>全量规则</span>
         <span class="monitor-type-count">-</span>
     </div>
 </div>
@@ -73,7 +73,7 @@
                     <th class="w-10">
                         <input type="checkbox" class="cursor-pointer">
                     </th>
-                    <th>监控器名称</th>
+                    <th>规则名称</th>
                     <th>类型</th>
                     <th>状态</th>
                     <th>执行次数</th>
@@ -111,7 +111,7 @@
                 currentFilter = 'FileMonitor';
             } else if (type.includes('AI')) {
                 currentFilter = 'AIMonitor';
-            } else if (type.includes('按钮监控') && !type.includes('图片')) {
+            } else if (type.includes('按钮规则') && !type.includes('图片')) {
                 currentFilter = 'ButtonMonitor';
             } else if (type.includes('图片按钮')) {
                 currentFilter = 'ImageButtonMonitor';
@@ -144,7 +144,7 @@
     document.querySelector('.monitors-table')?.addEventListener('click', function(e) {
         const deleteBtn = e.target.closest('.action-btn.delete');
         if (deleteBtn) {
-            if (confirm('确定要删除这个监控器吗？')) {
+            if (confirm('确定要删除这个规则吗？')) {
                 console.log('Delete monitor');
             }
         }
@@ -199,7 +199,7 @@
             
             let html = '<option value="">请选择账号</option>';
             accounts.forEach(account => {
-                html += `<option value="${account.account_id}">${account.phone} (${account.monitor_count || 0} 个监控器)</option>`;
+                html += `<option value="${account.account_id}">${account.phone} (${account.monitor_count || 0} 个规则)</option>`;
             });
             
             selector.innerHTML = html;
@@ -223,7 +223,7 @@
             <tr>
                 <td colspan="8" class="p-10 text-center text-slate-500">
                     <i class="bi bi-arrow-clockwise text-2xl"></i>
-                    <p class="mt-4">加载监控器中...</p>
+                    <p class="mt-4">加载规则中...</p>
                 </td>
             </tr>
         `;
@@ -238,7 +238,7 @@
             renderMonitorsList(filteredMonitors);
             
         } catch (error) {
-            console.error('加载监控器失败:', error);
+            console.error('加载规则失败:', error);
             tbody.innerHTML = `
                 <tr>
                     <td colspan="8" class="p-10 text-center text-red-600">
@@ -255,8 +255,8 @@
         const tbody = document.querySelector('.monitors-table tbody');
         
         if (monitors.length === 0) {
-            const emptyMessage = currentFilter === 'all' ? 
-                '暂无监控器<br>点击右上角按钮创建您的第一个监控器' : 
+            const emptyMessage = currentFilter === 'all' ?
+                '暂无规则<br>点击右上角按钮创建您的第一个规则' :
                 `暂无${getMonitorTypeName(currentFilter)}<br>点击筛选标签切换查看其他类型`;
             
             tbody.innerHTML = `
@@ -269,7 +269,7 @@
                         <p class="empty-text">${emptyMessage.split('<br>')[1]}</p>
                         ${currentFilter === 'all' ? `<button class="btn btn-primary mt-4" onclick="createNewMonitor()">
                             <i class="bi bi-plus"></i>
-                            创建监控器
+                            创建规则
                         </button>` : ''}
                     </td>
                 </tr>
@@ -358,12 +358,12 @@
     
     function getMonitorTypeName(type) {
         const names = {
-            'KeywordMonitor': '关键词监控',
-            'FileMonitor': '文件监控',
-            'AIMonitor': 'AI监控',
-            'ButtonMonitor': '按钮监控',
-            'ImageButtonMonitor': '图片按钮监控',
-            'AllMessagesMonitor': '全量监控'
+            'KeywordMonitor': '关键词规则',
+            'FileMonitor': '文件规则',
+            'AIMonitor': 'AI规则',
+            'ButtonMonitor': '按钮规则',
+            'ImageButtonMonitor': '图片按钮规则',
+            'AllMessagesMonitor': '全量规则'
         };
         return names[type] || '未知类型';
     }
@@ -384,7 +384,7 @@
         } else if (monitor.monitor_type === 'FileMonitor') {
             return `${monitor.config.file_extension || monitor.config.extension || monitor.key}`;
         } else if (monitor.monitor_type === 'AIMonitor') {
-            return `AI监控: ${monitor.key}`;
+            return `AI规则: ${monitor.key}`;
         } else if (monitor.monitor_type === 'ButtonMonitor') {
             return `按钮: ${monitor.config.button_text || monitor.key}`;
         } else if (monitor.monitor_type === 'ImageButtonMonitor') {
@@ -425,7 +425,7 @@
                 else if (tag.textContent.includes('关键词')) count.textContent = typeCounts.keyword;
                 else if (tag.textContent.includes('文件')) count.textContent = typeCounts.file;
                 else if (tag.textContent.includes('AI')) count.textContent = typeCounts.ai;
-                else if (tag.textContent.includes('按钮监控') && !tag.textContent.includes('图片')) count.textContent = typeCounts.button;
+                else if (tag.textContent.includes('按钮规则') && !tag.textContent.includes('图片')) count.textContent = typeCounts.button;
                 else if (tag.textContent.includes('图片按钮')) count.textContent = typeCounts.image_button;
                 else if (tag.textContent.includes('全量')) count.textContent = typeCounts.all;
             }
@@ -441,7 +441,7 @@
         
         currentPage = 1;
         
-        console.log(`筛选结果: ${currentFilter} - 共 ${filteredMonitors.length} 个监控器`);
+        console.log(`筛选结果: ${currentFilter} - 共 ${filteredMonitors.length} 个规则`);
     }
     
     function editMonitor(monitorType, monitorKey, monitorConfig, accountId) {
@@ -463,7 +463,7 @@
         if (urlType) {
             window.location.href = `/wizard?type=${urlType}&edit=true&key=${encodeURIComponent(monitorKey)}&config=${monitorConfig}&account_id=${encodeURIComponent(accountId)}`;
         } else {
-            alert('未知的监控器类型');
+            alert('未知的规则类型');
         }
     }
     
@@ -485,27 +485,41 @@
         try {
             const config = JSON.parse(decodeURIComponent(encodedConfig));
             const status = config.active !== false ? '运行中' : '已暂停';
+            const statusClass = config.active !== false ? 'status-badge-success' : 'status-badge-muted';
             const yesNo = value => value ? '已启用' : '未启用';
             const list = value => Array.isArray(value) && value.length ? value.join(', ') : '未设置';
-            const row = (label, value) => `<div class="config-row"><span>${label}</span><span>${escapeHtml(value)}</span></div>`;
-            const summary = [
+            const row = (label, value, wide = false) => `
+                <div class="config-row ${wide ? 'config-row-wide' : ''}">
+                    <span class="config-row-label">${label}</span>
+                    <span class="config-row-value">${escapeHtml(value)}</span>
+                </div>
+            `;
+            const summary = `
+                <div class="config-summary">
+                    ${[
                 row('类型', getMonitorTypeName(config.monitor_type || 'Unknown')),
                 row('状态', status),
-                row('监控范围', list(config.chats)),
+                row('适用范围', list(config.chats), true),
                 row('自动转发', yesNo(config.auto_forward)),
                 row('转发目标', list(config.forward_targets)),
                 row('智能改写', yesNo(config.forward_rewrite_enabled)),
-                row('追加模板', config.forward_rewrite_template || '未设置'),
                 row('自动回复', yesNo(config.reply_enabled)),
-                row('执行限制', config.max_executions || '无限制')
-            ].join('');
+                row('执行限制', config.max_executions || '无限制'),
+                row('追加模板', config.forward_rewrite_template || '未设置', true)
+                    ].join('')}
+                </div>
+            `;
 
             const modal = document.createElement('div');
             modal.className = 'config-modal-overlay';
             modal.innerHTML = `
                 <div class="config-modal-content">
                     <div class="config-modal-header">
-                        <h5><i class="bi bi-gear"></i> ${escapeHtml(getMonitorTypeName(config.monitor_type || 'Unknown'))} · ${status}</h5>
+                        <h5 class="flex min-w-0 items-center gap-2 text-base font-semibold">
+                            <i class="bi bi-gear"></i>
+                            <span class="truncate">${escapeHtml(getMonitorTypeName(config.monitor_type || 'Unknown'))}</span>
+                            <span class="status-badge ${statusClass}">${status}</span>
+                        </h5>
                         <button class="config-modal-close" onclick="this.closest('.config-modal-overlay').remove(); document.body.classList.remove('overflow-hidden');">
                             <i class="bi bi-x-lg"></i>
                         </button>
@@ -513,8 +527,8 @@
                     <div class="config-modal-body">
                         ${summary}
                         <details class="json-details">
-                            <summary>高级：完整配置</summary>
-                            <pre>${escapeHtml(JSON.stringify(config, null, 2))}</pre>
+                            <summary class="cursor-pointer font-medium">完整配置</summary>
+                            <pre class="mt-3 max-h-80 overflow-auto rounded bg-slate-950 p-3 text-xs text-slate-100">${escapeHtml(JSON.stringify(config, null, 2))}</pre>
                         </details>
                     </div>
                 </div>
@@ -538,7 +552,7 @@
     }
     
     async function deleteMonitor(monitorKey) {
-        if (!confirm('确定要删除这个监控器吗？此操作不可撤销。')) {
+        if (!confirm('确定要删除这个规则吗？此操作不可撤销。')) {
             return;
         }
         
@@ -551,12 +565,12 @@
             
             if (result.success) {
                 await loadMonitors(currentAccount);
-                showNotification('监控器删除成功', 'success');
+                showNotification('规则删除成功', 'success');
             } else {
                 showNotification('删除失败', 'error');
             }
         } catch (error) {
-            console.error('删除监控器失败:', error);
+            console.error('删除规则失败:', error);
             showNotification('删除失败: ' + error.message, 'error');
         }
     }
@@ -574,7 +588,7 @@
         tbody.innerHTML = `
             <tr>
                 <td colspan="8" class="p-10 text-center text-slate-500">
-                    <i class="bi bi-info-circle"></i> 请选择账号查看监控器
+                    <i class="bi bi-info-circle"></i> 请选择账号查看规则
                 </td>
             </tr>
         `;
@@ -671,7 +685,7 @@
     }
     
     async function toggleMonitorStatus(monitorKey, currentActive) {
-        if (!confirm(`确定要${currentActive ? '暂停' : '启动'}这个监控器吗？`)) {
+        if (!confirm(`确定要${currentActive ? '暂停' : '启动'}这个规则吗？`)) {
             return;
         }
         
@@ -687,13 +701,13 @@
             if (response.ok) {
                 const result = await response.json();
                 await loadMonitors(currentAccount);
-                showNotification(result.message || `监控器已${!currentActive ? '启动' : '暂停'}`, 'success');
+                showNotification(result.message || `规则已${!currentActive ? '启动' : '暂停'}`, 'success');
             } else {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.message || '状态更新失败');
             }
         } catch (error) {
-            console.error('切换监控器状态失败:', error);
+            console.error('切换规则状态失败:', error);
             showNotification('状态更新失败: ' + error.message, 'error');
         }
     }

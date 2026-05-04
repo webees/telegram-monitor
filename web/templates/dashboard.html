@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}仪表板 - TG监控{% endblock %}
+{% block title %}仪表板{% endblock %}
 {% block page_title %}仪表板{% endblock %}
-{% block page_subtitle %}账号、监控器和系统状态{% endblock %}
+{% block page_subtitle %}账号、规则和系统状态{% endblock %}
 
 {% block content %}
 <div class="stats-grid">
@@ -12,7 +12,7 @@
         <div class="stat-footer">所有已添加账号</div>
     </section>
     <section class="stat-card">
-        <div class="stat-title">监控器</div>
+        <div class="stat-title">规则</div>
         <div class="stat-value" id="active-monitors">-</div>
         <div class="stat-footer">当前配置数量</div>
     </section>
@@ -58,10 +58,10 @@
             <h2 class="data-card-title">常用操作</h2>
         </div>
         <div class="quick-actions">
-            <a href="/wizard" class="quick-action-btn"><i class="bi bi-plus-circle quick-action-icon"></i><span>创建监控器</span></a>
+            <a href="/wizard" class="quick-action-btn"><i class="bi bi-plus-circle quick-action-icon"></i><span>创建规则</span></a>
             <a href="/accounts" class="quick-action-btn"><i class="bi bi-person-plus quick-action-icon"></i><span>添加账号</span></a>
-            <a href="/scheduled-messages" class="quick-action-btn"><i class="bi bi-clock quick-action-icon"></i><span>定时消息</span></a>
-            <a href="/config-export" class="quick-action-btn"><i class="bi bi-download quick-action-icon"></i><span>配置管理</span></a>
+            <a href="/scheduled-messages" class="quick-action-btn"><i class="bi bi-clock quick-action-icon"></i><span>计划任务</span></a>
+            <a href="/config-export" class="quick-action-btn"><i class="bi bi-download quick-action-icon"></i><span>配置</span></a>
         </div>
     </section>
 </div>

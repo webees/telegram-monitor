@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}配置向导 - TG监控系统{% endblock %}
+{% block title %}新建规则{% endblock %}
 
-{% block page_title %}配置向导{% endblock %}
-{% block page_subtitle %}快速创建和配置监控器{% endblock %}
+{% block page_title %}新建规则{% endblock %}
+{% block page_subtitle %}快速创建和配置规则{% endblock %}
 
 
 {% block content %}
@@ -40,8 +40,8 @@
     <div class="wizard-content">
                     <div class="step-content" id="step1">
             <div class="wizard-content-header">
-                <h2 class="wizard-content-title">选择监控类型</h2>
-                <p class="wizard-content-description">选择要创建的监控器类型</p>
+                <h2 class="wizard-content-title">选择规则类型</h2>
+                <p class="wizard-content-description">选择要创建的规则类型</p>
             </div>
 
             <form id="step1Form">
@@ -50,15 +50,15 @@
                     <div class="monitor-type-icon">
                         <i class="bi bi-search"></i>
                     </div>
-                    <div class="monitor-type-name">关键词监控</div>
-                    <div class="monitor-type-desc">监控包含特定关键词的消息</div>
+                    <div class="monitor-type-name">关键词规则</div>
+                    <div class="monitor-type-desc">匹配包含特定关键词的消息</div>
                 </div>
 
                 <div class="monitor-type-card" data-type="file">
                     <div class="monitor-type-icon">
                         <i class="bi bi-file-earmark"></i>
                     </div>
-                    <div class="monitor-type-name">文件监控</div>
+                    <div class="monitor-type-name">文件规则</div>
                     <div class="monitor-type-desc">监控特定类型的文件</div>
                 </div>
 
@@ -66,23 +66,23 @@
                     <div class="monitor-type-icon">
                         <i class="bi bi-cpu"></i>
                     </div>
-                    <div class="monitor-type-name">AI智能监控</div>
-                    <div class="monitor-type-desc">使用AI智能识别消息</div>
+                    <div class="monitor-type-name">AI规则</div>
+                    <div class="monitor-type-desc">使用AI识别消息</div>
                 </div>
 
                 <div class="monitor-type-card" data-type="all">
                     <div class="monitor-type-icon">
                         <i class="bi bi-globe"></i>
                     </div>
-                    <div class="monitor-type-name">全量监控</div>
-                    <div class="monitor-type-desc">监控所有消息</div>
+                    <div class="monitor-type-name">全量规则</div>
+                    <div class="monitor-type-desc">处理所有消息</div>
                 </div>
 
                 <div class="monitor-type-card" data-type="button">
                     <div class="monitor-type-icon">
                         <i class="bi bi-hand-index"></i>
                     </div>
-                    <div class="monitor-type-name">按钮监控</div>
+                    <div class="monitor-type-name">按钮规则</div>
                     <div class="monitor-type-desc">监控并点击按钮</div>
                 </div>
 
@@ -90,8 +90,8 @@
                     <div class="monitor-type-icon">
                         <i class="bi bi-image"></i>
                     </div>
-                    <div class="monitor-type-name">图片按钮监控</div>
-                    <div class="monitor-type-desc">监控包含图片的按钮</div>
+                    <div class="monitor-type-name">图片按钮规则</div>
+                    <div class="monitor-type-desc">匹配包含图片的按钮</div>
                 </div>
             </div>
             </form>
@@ -100,16 +100,16 @@
         <div class="step-content hidden" id="step2">
             <div class="wizard-content-header">
                 <h2 class="wizard-content-title">基础配置</h2>
-                <p class="wizard-content-description">配置监控器的基本信息和参数</p>
+                <p class="wizard-content-description">配置规则的基本信息和参数</p>
 
             <form id="wizardForm">
             <div class="form-section">
                 <h3 class="form-section-title">基本信息</h3>
                 <div class="form-grid">
                     <div class="form-group">
-                        <label class="form-label required">监控器名称</label>
+                        <label class="form-label required">规则名称</label>
                         <input type="text" class="form-input" placeholder="例如：技术交流监控" required>
-                        <div class="form-help">给监控器起一个易于识别的名称</div>
+                        <div class="form-help">给规则起一个易于识别的名称</div>
                     </div>
 
                     <div class="form-group">
@@ -123,15 +123,15 @@
             </div>
 
             <div class="form-section">
-                <h3 class="form-section-title">监控配置</h3>
+                <h3 class="form-section-title">规则配置</h3>
 
                 <div id="keyword-config" class="monitor-config">
                     <div class="form-group">
-                        <label class="form-label required">监控关键词</label>
+                        <label class="form-label required">关键词</label>
                         <div class="tag-input-container">
                             <input type="text" class="tag-input" placeholder="输入关键词后按回车">
                         </div>
-                        <div class="form-help">输入要监控的关键词，支持多个关键词</div>
+                        <div class="form-help">输入要匹配的关键词，支持多个关键词</div>
                     </div>
 
                     <div class="form-group">
@@ -150,7 +150,7 @@
                         <div class="tag-input-container">
                             <input type="text" class="tag-input" placeholder="例如：pdf, doc, zip">
                         </div>
-                        <div class="form-help">输入要监控的文件扩展名，多个用逗号分隔</div>
+                        <div class="form-help">输入要匹配的文件扩展名，多个用逗号分隔</div>
                     </div>
 
                     <div class="form-grid">
@@ -175,7 +175,7 @@
                 <div id="ai-config" class="monitor-config hidden">
                     <div class="form-group">
                         <label class="form-label required">AI提示词</label>
-                        <textarea class="form-input" rows="4" placeholder="描述要监控的消息特征，例如：包含技术讨论的消息"></textarea>
+                        <textarea class="form-input" rows="4" placeholder="描述要匹配的消息特征，例如：包含技术讨论的消息"></textarea>
                         <div class="form-help">AI将根据您的提示词智能识别相关消息</div>
                     </div>
 
@@ -193,14 +193,14 @@
                 <div id="all-config" class="monitor-config hidden">
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle"></i>
-                        全量监控将捕获所选群组/频道的所有消息
+                        全量规则将捕获所选目标的所有消息
                     </div>
                     <div class="form-group">
-                        <label class="form-label">监控模式</label>
+                        <label class="form-label">处理模式</label>
                         <select class="form-select">
-                            <option value="all">监控所有消息</option>
-                            <option value="text">仅监控文本消息</option>
-                            <option value="media">仅监控媒体消息</option>
+                            <option value="all">处理所有消息</option>
+                            <option value="text">仅处理文本消息</option>
+                            <option value="media">仅处理媒体消息</option>
                         </select>
                     </div>
                 </div>
@@ -209,7 +209,7 @@
                     <div class="form-group">
                         <label class="form-label required">按钮文本</label>
                         <input type="text" class="form-input" name="button_text" placeholder="例如：立即领取" required>
-                        <div class="form-help">输入要监控的按钮文本</div>
+                        <div class="form-help">输入要匹配的按钮文本</div>
                     </div>
 
                     <div class="form-group">
@@ -231,7 +231,7 @@
                     <div class="form-group">
                         <label class="form-label required">按钮文本</label>
                         <input type="text" class="form-input" name="button_text" placeholder="例如：领取奖励" required>
-                        <div class="form-help">输入要监控的按钮文本</div>
+                        <div class="form-help">输入要匹配的按钮文本</div>
                     </div>
 
                     <div class="form-group">
@@ -257,16 +257,16 @@
             </div>
 
             <div class="form-section">
-                <h3 class="form-section-title">监控范围</h3>
+                <h3 class="form-section-title">适用范围</h3>
                 <div class="form-group">
-                    <label class="form-label">选择要监控的群组/频道</label>
+                    <label class="form-label">选择要匹配的目标</label>
                     <div id="channels-loading" class="p-5 text-center text-slate-500">
                         <i class="bi bi-arrow-clockwise"></i>
-                        正在加载频道列表...
+                        正在加载目标列表...
                     </div>
                     <div class="form-checkbox-group hidden" id="channels-list">
                     </div>
-                    <div class="form-help">选择一个或多个要监控的群组/频道</div>
+                    <div class="form-help">选择一个或多个要匹配的目标</div>
                 </div>
             </div>
 
@@ -303,14 +303,14 @@
                         <div class="form-help">输入要过滤的Bot ID，每行一个</div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">频道ID列表</label>
+                        <label class="form-label">目标ID列表</label>
                         <textarea class="form-input" name="channel_ids" rows="3" placeholder="每行一个ID"></textarea>
-                        <div class="form-help">输入要过滤的频道ID，每行一个</div>
+                        <div class="form-help">输入要过滤的目标ID，每行一个</div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">群组ID列表</label>
+                        <label class="form-label">会话ID列表</label>
                         <textarea class="form-input" name="group_ids" rows="3" placeholder="每行一个ID"></textarea>
-                        <div class="form-help">输入要过滤的群组ID，每行一个</div>
+                        <div class="form-help">输入要过滤的会话ID，每行一个</div>
                     </div>
                 </div>
 
@@ -329,7 +329,7 @@
                 </div>
 
                             <div class="form-group">
-                <label class="form-label">监控优先级</label>
+                <label class="form-label">规则优先级</label>
                 <input type="range" class="form-range" name="priority" min="1" max="100" value="50" id="priority">
                 <div class="flex justify-between text-xs text-slate-500">
                     <span>高优先级</span>
@@ -342,7 +342,7 @@
                             <div class="form-group">
                 <label class="form-label">最大执行次数</label>
                 <input type="number" class="form-input" name="max_executions" placeholder="不限制" min="1">
-                <div class="form-help">监控器最多执行的次数，留空表示不限制</div>
+                <div class="form-help">规则最多执行的次数，留空表示不限制</div>
             </div>
             </div>
 
@@ -354,7 +354,7 @@
                         <input type="checkbox" name="auto_reply" id="auto_reply">
                         启用自动回复
                     </label>
-                    <div class="form-help">当监控到匹配的消息时自动回复</div>
+                    <div class="form-help">当匹配到消息时自动回复</div>
                 </div>
 
                 <div class="form-group hidden" id="reply-config">
@@ -362,7 +362,7 @@
                     <div class="tag-input-container">
                         <input type="text" class="tag-input" name="reply_texts" placeholder="输入回复内容后按回车，支持多条">
                     </div>
-                    <div class="form-help">留空则使用动态回复（关键词监控回复匹配的关键词，AI监控回复AI响应）</div>
+                    <div class="form-help">留空则使用动态回复（关键词规则回复匹配的关键词，AI规则回复AI响应）</div>
                 </div>
 
                 <div class="form-group">
@@ -370,13 +370,13 @@
                         <input type="checkbox" name="auto_forward" id="auto_forward">
                         启用自动转发
                     </label>
-                    <div class="form-help">当监控到匹配的消息时自动转发</div>
+                    <div class="form-help">当匹配到消息时自动转发</div>
                 </div>
 
                 <div class="form-group hidden" id="forward-config">
                     <label class="form-label">转发目标ID</label>
                     <input type="text" class="form-input" name="forward_target_id" placeholder="-1001234567890,-1009876543210">
-                    <div class="form-help">填目标群或频道ID，不是群名称。多个目标用英文逗号分隔。</div>
+                    <div class="form-help">填目标群或目标ID，不是群名称。多个目标用英文逗号分隔。</div>
                     <div class="help-examples">
                         单个目标：<code>-1001234567890</code><br>
                         多个目标：<code>-1001234567890,-1009876543210</code>
@@ -457,7 +457,7 @@
         <div class="step-content hidden" id="step5">
             <div class="wizard-content-header">
                 <h2 class="wizard-content-title">确认创建</h2>
-                <p class="wizard-content-description">检查配置并创建监控器</p>
+                <p class="wizard-content-description">检查配置并创建规则</p>
             </div>
         </div>
     </div>
@@ -479,7 +479,7 @@
         const newParam = urlParams.get('new');
 
         if (newParam === 'true') {
-            console.log('创建新监控器模式 - 清除所有编辑状态');
+            console.log('创建新规则模式 - 清除所有编辑状态');
             isEditMode = false;
             editKey = '';
             editConfig = {};
@@ -978,16 +978,16 @@
                         <div class="action-card-icon">
                             <i class="bi bi-eye"></i>
                         </div>
-                        <h4 class="action-card-title">查看监控器</h4>
-                        <p class="action-card-description">查看和管理所有已创建的监控器</p>
+                        <h4 class="action-card-title">查看规则</h4>
+                        <p class="action-card-description">查看所有已创建的规则</p>
                     </a>
                     
                     <button class="action-card" onclick="createNewMonitor()">
                         <div class="action-card-icon">
                             <i class="bi bi-plus-circle"></i>
                         </div>
-                        <h4 class="action-card-title">创建新监控器</h4>
-                        <p class="action-card-description">快速创建另一个监控任务</p>
+                        <h4 class="action-card-title">创建新规则</h4>
+                        <p class="action-card-description">快速创建另一个规则任务</p>
                     </button>
                     
                     <a href="/" class="action-card">
@@ -1005,7 +1005,7 @@
     }
 
     function cancelWizard() {
-        if (confirm('确定要取消配置向导吗？已填写的信息将丢失。')) {
+        if (confirm('确定要取消新建规则吗？已填写的信息将丢失。')) {
             window.location.href = '/monitors';
         }
     }
@@ -1089,7 +1089,7 @@
         if (currentStep === 1) {
             const selectedType = document.querySelector('.monitor-type-card.selected');
             if (!selectedType) {
-                alert('请选择一个监控类型');
+                alert('请选择一个规则类型');
                 return false;
             }
             return true;
@@ -1124,7 +1124,7 @@
 
         console.log('Submitting wizard data...');
 
-        alert('监控器创建成功！');
+        alert('规则创建成功！');
 
         window.location.href = '/monitors';
     }
@@ -1313,7 +1313,7 @@
 
                     const channels = data.channels || [];
                     if (channels.length === 0) {
-                        channelsList.innerHTML = '<div class="p-5 text-center text-slate-500">暂无可用的群组/频道</div>';
+                        channelsList.innerHTML = '<div class="p-5 text-center text-slate-500">暂无可用的目标</div>';
                     } else {
                         channels.forEach(channel => {
                             const checkbox = document.createElement('label');

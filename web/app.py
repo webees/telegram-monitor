@@ -100,7 +100,7 @@ class PasswordRequest(BaseModel):
 class WebApp:
     
     def __init__(self):
-        self.app = FastAPI(title="Telegram监控系统", description="智能化Telegram消息监控平台")
+        self.app = FastAPI(title="工作台", description="服务接口")
         
         # 生成稳定的 secret_key（基于配置的密码，避免每次重启后会话失效）
         if config and hasattr(config, 'WEB_PASSWORD') and config.WEB_PASSWORD:
@@ -259,7 +259,7 @@ class WebApp:
             user = self.get_current_user(request)
             return self.templates.TemplateResponse(request, "dashboard.html", {
                 "request": request,
-                "title": "监控仪表板",
+                "title": "仪表板",
                 "user": user
             })
         
@@ -268,7 +268,7 @@ class WebApp:
             user = self.get_current_user(request)
             return self.templates.TemplateResponse(request, "logs.html", {
                 "request": request,
-                "title": "程序日志",
+                "title": "运行日志",
                 "user": user
             })
         
@@ -277,7 +277,7 @@ class WebApp:
             user = self.get_current_user(request)
             return self.templates.TemplateResponse(request, "accounts.html", {
                 "request": request,
-                "title": "账号管理",
+                "title": "账号",
                 "user": user
             })
         
@@ -286,7 +286,7 @@ class WebApp:
             user = self.get_current_user(request)
             return self.templates.TemplateResponse(request, "monitors.html", {
                 "request": request,
-                "title": "监控器管理",
+                "title": "规则",
                 "user": user
             })
 
@@ -557,7 +557,7 @@ class WebApp:
                         'step': 'verify_code'
                     }
                     
-                    return {"success": True, "message": "验证码已发送，请检查您的Telegram", "step": "verify_code"}
+                    return {"success": True, "message": "验证码已发送，请检查账号消息", "step": "verify_code"}
                 else:
                     me = await client.get_me()
                     account = Account(
@@ -896,10 +896,10 @@ class WebApp:
                     if edit_mode and edit_key:
                         self.monitor_engine.remove_monitor(account_id, edit_key)
                         self.monitor_engine.add_monitor(account_id, monitor, f"keyword_{keyword}")
-                        message = "关键词监控器更新成功"
+                        message = "关键词规则更新成功"
                     else:
                         self.monitor_engine.add_monitor(account_id, monitor, f"keyword_{keyword}")
-                        message = "关键词监控器创建成功"
+                        message = "关键词规则创建成功"
                     
                     await self.broadcast_status_update()
                     return {"success": True, "message": message}
@@ -907,7 +907,7 @@ class WebApp:
                     return {"success": False, "message": "监控器创建失败"}
                     
             except Exception as e:
-                self.logger.error(f"创建关键词监控器失败: {e}")
+                self.logger.error(f"创建关键词规则失败: {e}")
                 return {"success": False, "message": f"创建失败: {str(e)}"}
         
         @self.app.post("/api/wizard/ai")
@@ -952,10 +952,10 @@ class WebApp:
                 self.monitor_engine.add_monitor(account_id, ai_monitor, monitor_key)
                 await self.broadcast_status_update()
                 
-                return {"success": True, "message": "AI监控器创建成功"}
+                return {"success": True, "message": "AI规则创建成功"}
                 
             except Exception as e:
-                self.logger.error(f"创建AI监控器失败: {e}")
+                self.logger.error(f"创建AI规则失败: {e}")
                 return {"success": False, "message": f"创建失败: {str(e)}"}
         
         @self.app.post("/api/wizard/file")
@@ -1009,10 +1009,10 @@ class WebApp:
                     if edit_mode and edit_key:
                         self.monitor_engine.remove_monitor(account_id, edit_key)
                         self.monitor_engine.add_monitor(account_id, monitor, f"file_{file_extension}")
-                        message = "文件监控器更新成功"
+                        message = "文件规则更新成功"
                     else:
                         self.monitor_engine.add_monitor(account_id, monitor, f"file_{file_extension}")
-                        message = "文件监控器创建成功"
+                        message = "文件规则创建成功"
                     
                     await self.broadcast_status_update()
                     return {"success": True, "message": message}
@@ -1020,7 +1020,7 @@ class WebApp:
                     return {"success": False, "message": "监控器创建失败"}
                     
             except Exception as e:
-                self.logger.error(f"创建文件监控器失败: {e}")
+                self.logger.error(f"创建文件规则失败: {e}")
                 return {"success": False, "message": f"创建失败: {str(e)}"}
         
         @self.app.websocket("/ws")
@@ -1268,10 +1268,10 @@ class WebApp:
                     
                 except Exception as iter_error:
                     self.logger.error(f"迭代对话时出错: {iter_error}")
-                    return {"success": False, "channels": [], "error": f"获取频道列表失败: {str(iter_error)}"}
+                    return {"success": False, "channels": [], "error": f"获取目标列表失败: {str(iter_error)}"}
                 
             except Exception as e:
-                self.logger.error(f"获取频道列表失败: {e}")
+                self.logger.error(f"获取目标列表失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.app.post("/api/accounts/{account_id}/export-channels")
@@ -1322,7 +1322,7 @@ class WebApp:
                     )
                     
             except Exception as e:
-                self.logger.error(f"导出频道列表失败: {e}")
+                self.logger.error(f"导出目标列表失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.app.post("/api/scheduled-messages")
@@ -1405,7 +1405,7 @@ class WebApp:
                 return {"success": True, "job_id": config.job_id}
                 
             except Exception as e:
-                self.logger.error(f"创建定时消息失败: {e}")
+                self.logger.error(f"创建计划任务失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.app.get("/api/scheduled-messages")
@@ -1433,7 +1433,7 @@ class WebApp:
                 }
                 
             except Exception as e:
-                self.logger.error(f"获取定时消息失败: {e}")
+                self.logger.error(f"获取计划任务失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.app.get("/api/cron-examples")
@@ -1451,12 +1451,12 @@ class WebApp:
                 success = engine.remove_scheduled_message(job_id)
                 
                 if success:
-                    return {"success": True, "message": "定时消息删除成功"}
+                    return {"success": True, "message": "计划任务删除成功"}
                 else:
-                    return {"success": False, "message": "未找到指定的定时消息"}
+                    return {"success": False, "message": "未找到指定的计划任务"}
                 
             except Exception as e:
-                self.logger.error(f"删除定时消息失败: {e}")
+                self.logger.error(f"删除计划任务失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.app.put("/api/scheduled-messages/{job_id}")
@@ -1484,7 +1484,7 @@ class WebApp:
                             except (ValueError, TypeError):
                                 max_executions = None
                         
-                        self.logger.info(f"📝 更新定时消息执行次数限制: {max_executions or '无限制'}")
+                        self.logger.info(f"📝 更新计划任务执行次数限制: {max_executions or '无限制'}")
                         
                         new_cron = data.get('schedule', data.get('cron', old_cron))
                         engine.scheduled_messages[i].update({
@@ -1503,7 +1503,7 @@ class WebApp:
                             'max_executions': max_executions
                         })
                         
-                        self.logger.info(f"📝 定时消息更新: {job_id}, 执行限制: {max_executions or '无限制'}, Cron: {new_cron}")
+                        self.logger.info(f"📝 计划任务更新: {job_id}, 执行限制: {max_executions or '无限制'}, Cron: {new_cron}")
                         
                         if old_cron != new_cron or old_active:
                             engine._start_scheduler()
@@ -1529,12 +1529,12 @@ class WebApp:
                                         self.logger.error(f"重新添加定时任务失败: {add_error}")
                         
                         engine._save_scheduled_messages()
-                        return {"success": True, "message": "定时消息更新成功"}
+                        return {"success": True, "message": "计划任务更新成功"}
                 
-                return {"success": False, "message": "未找到指定的定时消息"}
+                return {"success": False, "message": "未找到指定的计划任务"}
                 
             except Exception as e:
-                self.logger.error(f"更新定时消息失败: {e}")
+                self.logger.error(f"更新计划任务失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.app.put("/api/scheduled-messages/{job_id}/toggle")
@@ -1602,14 +1602,14 @@ class WebApp:
                         engine._save_scheduled_messages()
                         return {
                             "success": True, 
-                            "message": f"定时消息已{'启动' if active else '暂停'}",
+                            "message": f"计划任务已{'启动' if active else '暂停'}",
                             "active": active
                         }
                 
-                return {"success": False, "message": "未找到指定的定时消息"}
+                return {"success": False, "message": "未找到指定的计划任务"}
                 
             except Exception as e:
-                self.logger.error(f"切换定时消息状态失败: {e}")
+                self.logger.error(f"切换计划任务状态失败: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
         @self.app.get("/api/logs")
@@ -1697,17 +1697,17 @@ class WebApp:
                 if log_file.exists():
                     return FileResponse(
                         path=str(log_file),
-                        filename=f"tg_monitor_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log",
+                        filename=f"system_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log",
                         media_type="text/plain"
                     )
                 else:
-                    temp_content = f"# TG监控系统日志文件\n# 生成时间: {datetime.now()}\n\n暂无日志记录。\n"
+                    temp_content = f"# 工作台日志文件\n# 生成时间: {datetime.now()}\n\n暂无日志记录。\n"
                     return StreamingResponse(
                         io.BytesIO(temp_content.encode('utf-8')),
                         media_type="text/plain",
                         headers={
                             "Content-Disposition": (
-                                f"attachment; filename=tg_monitor_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+                                f"attachment; filename=system_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
                             )
                         }
                     )
@@ -1874,7 +1874,7 @@ class WebApp:
                         if hasattr(self.monitor_engine, 'clear_scheduled_messages'):
                             self.monitor_engine.clear_scheduled_messages()
                     except Exception as e:
-                        self.logger.warning(f"清理定时消息失败: {e}")
+                        self.logger.warning(f"清理计划任务失败: {e}")
                 
                 if 'accounts' in config:
                     self.logger.info(f"导入 {len(config['accounts'])} 个账号配置")
@@ -2181,7 +2181,7 @@ class WebApp:
                                         continue
                     
                 if 'scheduled_messages' in config and config['scheduled_messages']:
-                    self.logger.info(f"导入 {len(config['scheduled_messages'])} 个定时消息")
+                    self.logger.info(f"导入 {len(config['scheduled_messages'])} 个计划任务")
                     for msg_data in config['scheduled_messages']:
                         try:
                             from core.model import ScheduledMessageConfig
@@ -2216,7 +2216,7 @@ class WebApp:
                             self.monitor_engine.add_scheduled_message(config)
                             imported_scheduled += 1
                         except Exception as e:
-                            self.logger.error(f"导入定时消息失败: {e}")
+                            self.logger.error(f"导入计划任务失败: {e}")
                             continue
                 
                 await self.broadcast_status_update()
@@ -2227,7 +2227,7 @@ class WebApp:
                 if imported_monitors > 0:
                     result_parts.append(f"{imported_monitors}个监控器")
                 if imported_scheduled > 0:
-                    result_parts.append(f"{imported_scheduled}个定时消息")
+                    result_parts.append(f"{imported_scheduled}个计划任务")
                 
                 if result_parts:
                     message = f"配置导入成功，共导入 {', '.join(result_parts)}"

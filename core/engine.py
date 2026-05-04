@@ -580,7 +580,7 @@ class MonitorEngine(metaclass=Singleton):
                 )
 
                 asyncio.create_task(self._send_email_async(
-                    subject=f"TG监控系统 - 检测到 {len(matched_monitors)} 个匹配",
+                    subject=f"工作台 - 检测到 {len(matched_monitors)} 个匹配",
                     content=email_content,
                     email_addresses=actions.get('email_addresses', []),
                     monitor_count=len(matched_monitors)
@@ -778,7 +778,7 @@ class MonitorEngine(metaclass=Singleton):
             sender_info = f"{sender_name} {sender_username} (ID: {message.sender.id})".strip()
 
         email_content = "=" * 50 + "\n"
-        email_content += "📢 TG监控系统 - 消息匹配通知\n"
+        email_content += "📢 工作台 - 消息匹配通知\n"
         email_content += "=" * 50 + "\n\n"
 
         email_content += "📍 基本信息：\n"
@@ -850,7 +850,7 @@ class MonitorEngine(metaclass=Singleton):
 
         email_content += "-" * 30 + "\n"
         email_content += "🔧 系统信息：\n"
-        email_content += f"📧 此邮件由 TG监控系统 自动发送\n"
+        email_content += f"📧 此邮件由 工作台 自动发送\n"
         email_content += f"⚙️ 监控引擎版本：v2.0\n"
 
         return email_content
@@ -985,7 +985,7 @@ class MonitorEngine(metaclass=Singleton):
 
             self._save_scheduled_messages()
 
-            self.logger.info(f"添加定时消息: {config.job_id}")
+            self.logger.info(f"添加计划任务: {config.job_id}")
 
             self._start_scheduler()
 
@@ -1018,10 +1018,10 @@ class MonitorEngine(metaclass=Singleton):
                 except Exception as scheduler_error:
                     self.logger.error(f"添加调度任务失败: {scheduler_error}")
             else:
-                self.logger.warning(f"调度器未启动，定时消息任务将延后添加: {config.job_id}")
+                self.logger.warning(f"调度器未启动，计划任务将延后添加: {config.job_id}")
 
         except Exception as e:
-            self.logger.error(f"添加定时消息失败: {e}")
+            self.logger.error(f"添加计划任务失败: {e}")
 
     def get_scheduled_messages(self):
         return self.scheduled_messages
@@ -1035,18 +1035,18 @@ class MonitorEngine(metaclass=Singleton):
                     break
 
             if not message_config:
-                self.logger.error(f"未找到定时消息配置: {job_id}")
+                self.logger.error(f"未找到计划任务配置: {job_id}")
                 return
 
             if not message_config.get('active', True):
-                self.logger.debug(f"定时消息已暂停，跳过执行: {job_id}")
+                self.logger.debug(f"计划任务已暂停，跳过执行: {job_id}")
                 return
 
             max_executions = message_config.get('max_executions')
             execution_count = message_config.get('execution_count', 0)
 
             if max_executions and execution_count >= max_executions:
-                self.logger.info(f"定时消息达到执行次数限制，停止执行: {job_id}")
+                self.logger.info(f"计划任务达到执行次数限制，停止执行: {job_id}")
                 try:
                     self.scheduler.remove_job(job_id)
                 except Exception:
@@ -1058,7 +1058,7 @@ class MonitorEngine(metaclass=Singleton):
             message_text = message_config.get('message', '')
 
             if not account_id or not target_id:
-                self.logger.error(f"定时消息配置不完整: account_id={account_id}, target_id={target_id}")
+                self.logger.error(f"计划任务配置不完整: account_id={account_id}, target_id={target_id}")
                 return
 
             from .account import AccountManager
@@ -1088,7 +1088,7 @@ class MonitorEngine(metaclass=Singleton):
 请根据上述信息生成合适的消息内容。要求：
 1. 内容要符合用户的提示词要求
 2. 可以包含当前时间信息（如果相关）
-3. 内容要简洁明了，适合发送到Telegram
+3. 内容要简洁明了，适合发送到目标会话
 4. 直接返回消息内容，不要包含额外的解释
 
 请生成消息内容：
@@ -1121,7 +1121,7 @@ class MonitorEngine(metaclass=Singleton):
             if random_delay > 0:
                 import random  # NOSONAR - 用于模拟人类发送延迟，不需要密码学安全性
                 actual_delay = random.randint(0, random_delay)  # NOSONAR
-                self.logger.info(f"⏰ 定时消息延时发送: {actual_delay} 秒 (最大延时: {random_delay} 秒)")
+                self.logger.info(f"⏰ 计划任务延时发送: {actual_delay} 秒 (最大延时: {random_delay} 秒)")
                 await asyncio.sleep(actual_delay)
 
             try:
@@ -1151,7 +1151,7 @@ class MonitorEngine(metaclass=Singleton):
             new_count = message_config['execution_count']
             max_executions = message_config.get('max_executions')
 
-            self.logger.info(f"✅ 定时消息执行成功: {job_id} -> {target_id}")
+            self.logger.info(f"✅ 计划任务执行成功: {job_id} -> {target_id}")
             self.logger.info(f"📊 执行统计更新: {old_count} → {new_count}/{max_executions or '无限制'} 次")
             if random_delay > 0:
                 self.logger.info(f"⏰ 延时设置: {random_delay} 秒")
@@ -1163,7 +1163,7 @@ class MonitorEngine(metaclass=Singleton):
                     if self.scheduler and self.scheduler.running:
                         try:
                             self.scheduler.pause_job(job_id)
-                            self.logger.info(f"⏸️ 定时消息任务已暂停: {job_id}")
+                            self.logger.info(f"⏸️ 计划任务已暂停: {job_id}")
                         except Exception as pause_error:
                             self.scheduler.remove_job(job_id)
                             self.logger.warning(f"无法暂停任务，已移除: {job_id}")
@@ -1171,12 +1171,12 @@ class MonitorEngine(metaclass=Singleton):
                     message_config['active'] = False
 
                     self._save_scheduled_messages()
-                    self.logger.info(f"🛑 定时消息已达到执行限制 ({max_executions} 次)，已暂停任务: {job_id}")
+                    self.logger.info(f"🛑 计划任务已达到执行限制 ({max_executions} 次)，已暂停任务: {job_id}")
                 except Exception as pause_error:
                     self.logger.error(f"暂停达到限制的定时任务失败: {pause_error}")
             else:
                 self.logger.info(
-                    f"📈 定时消息继续运行，剩余执行次数: {max_executions - message_config['execution_count'] if max_executions else '无限制'}")
+                    f"📈 计划任务继续运行，剩余执行次数: {max_executions - message_config['execution_count'] if max_executions else '无限制'}")
 
             if message_config.get('delete_after_send', False):
                 try:
@@ -1185,7 +1185,7 @@ class MonitorEngine(metaclass=Singleton):
                     self.logger.error(f"删除消息失败: {delete_error}")
 
         except Exception as e:
-            self.logger.error(f"执行定时消息失败 {job_id}: {e}")
+            self.logger.error(f"执行计划任务失败 {job_id}: {e}")
 
     def remove_scheduled_message(self, job_id: str):
         try:
@@ -1203,15 +1203,15 @@ class MonitorEngine(metaclass=Singleton):
                     self.logger.debug(f"调度器未运行，跳过移除任务: {job_id}")
 
                 self._save_scheduled_messages()
-                self.logger.info(f"删除定时消息: {job_id}")
+                self.logger.info(f"删除计划任务: {job_id}")
 
                 return True
             else:
-                self.logger.warning(f"未找到定时消息: {job_id}")
+                self.logger.warning(f"未找到计划任务: {job_id}")
                 return False
 
         except Exception as e:
-            self.logger.error(f"删除定时消息失败: {e}")
+            self.logger.error(f"删除计划任务失败: {e}")
             return False
 
     def _save_scheduled_messages(self):
@@ -1219,24 +1219,24 @@ class MonitorEngine(metaclass=Singleton):
             messages_copy = copy.deepcopy(self.scheduled_messages)
             atomic_write_json(self.scheduled_messages_file, messages_copy, self._save_lock)
 
-            self.logger.info(f"已保存 {len(messages_copy)} 条定时消息")
+            self.logger.info(f"已保存 {len(messages_copy)} 条计划任务")
 
         except Exception as e:
-            self.logger.error(f"保存定时消息任务失败: {e}")
+            self.logger.error(f"保存计划任务失败: {e}")
 
     def _load_scheduled(self):
         if not self.scheduled_messages_file.exists():
-            self.logger.info("定时消息文件不存在，跳过加载")
+            self.logger.info("计划任务文件不存在，跳过加载")
             return
 
         try:
             data = read_json_file(self.scheduled_messages_file, [])
 
             self.scheduled_messages = data
-            self.logger.info(f"已加载 {len(self.scheduled_messages)} 条定时消息")
+            self.logger.info(f"已加载 {len(self.scheduled_messages)} 条计划任务")
 
         except Exception as e:
-            self.logger.error(f"加载定时消息文件失败: {e}")
+            self.logger.error(f"加载计划任务文件失败: {e}")
 
     async def _send_email(self, subject: str, content: str, email_addresses: list = None):
         if not email_addresses:

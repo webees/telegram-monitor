@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}账号管理 - TG监控系统{% endblock %}
+{% block title %}账号{% endblock %}
 
-{% block page_title %}账号管理{% endblock %}
-{% block page_subtitle %}管理和配置您的Telegram账号{% endblock %}
+{% block page_title %}账号{% endblock %}
+{% block page_subtitle %}配置账号{% endblock %}
 
 
 {% block content %}
@@ -75,14 +75,14 @@
             <i class="bi bi-plus-lg"></i>
         </div>
         <div class="add-account-text">添加新账号</div>
-        <div class="add-account-subtext">点击添加Telegram账号</div>
+        <div class="add-account-subtext">点击添加账号</div>
     </div>
 </div>
 
 <div class="modal" id="addAccountModal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 class="modal-title">添加Telegram账号</h3>
+            <h3 class="modal-title">添加账号</h3>
             <button class="modal-close" onclick="hideAddAccountModal()">
                 <i class="bi bi-x"></i>
             </button>
@@ -98,13 +98,13 @@
                 <div class="form-group">
                     <label class="form-label">API ID</label>
                     <input type="text" class="form-input" name="api_id" id="apiId" placeholder="请输入API ID" required>
-                    <div class="form-help">从 my.telegram.org 获取</div>
+                    <div class="form-help">从开发者后台获取</div>
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label">API Hash</label>
                     <input type="text" class="form-input" name="api_hash" id="apiHash" placeholder="请输入API Hash" required>
-                    <div class="form-help">从 my.telegram.org 获取</div>
+                    <div class="form-help">从开发者后台获取</div>
                 </div>
                 
                 <div class="form-group">
@@ -149,7 +149,7 @@
         <div class="modal-body">
             <div class="mb-6 rounded border border-sky-200 bg-sky-50 p-4 text-sky-700">
                 <i class="bi bi-phone"></i>
-                验证码已发送到您的Telegram账号,请检查消息。
+                验证码已发送到您的账号,请检查消息。
             </div>
             
             <form id="verifyCodeForm">
@@ -159,7 +159,7 @@
                     <label class="form-label">验证码</label>
                     <input type="text" class="form-input text-center text-2xl tracking-[0.5em]" id="verification_code" name="code"
                            placeholder="请输入验证码" maxlength="6" required>
-                    <div class="form-help">请输入Telegram发送给您的验证码（通常为5-6位数字）</div>
+                    <div class="form-help">请输入发送给您的验证码（通常为5-6位数字）</div>
                 </div>
             </form>
         </div>
@@ -198,7 +198,7 @@
                             <i class="bi bi-eye"></i>
                         </button>
                     </div>
-                    <div class="form-help">请输入您在Telegram中设置的两步验证密码</div>
+                    <div class="form-help">请输入您在账号中设置的两步验证密码</div>
                 </div>
             </form>
         </div>
@@ -445,7 +445,7 @@
                             <i class="bi bi-people"></i>
                         </div>
                         <div class="empty-state-title">暂无账号</div>
-                        <div class="empty-state-text">点击添加您的第一个Telegram账号</div>
+                        <div class="empty-state-text">点击添加您的第一个账号</div>
                     </div>
                 `;
             } else {
@@ -487,7 +487,7 @@
                             <div class="account-stats">
                                 <div class="account-stat">
                                     <div class="account-stat-value">${account.monitor_count || 0}</div>
-                                    <div class="account-stat-label">监控器</div>
+                                    <div class="account-stat-label">规则</div>
                                 </div>
                                 <div class="account-stat">
                                     <div class="account-stat-value">${account.user_id || '--'}</div>
@@ -532,7 +532,7 @@
                         <i class="bi bi-plus-lg"></i>
                     </div>
                     <div class="add-account-text">添加新账号</div>
-                    <div class="add-account-subtext">点击添加Telegram账号</div>
+                    <div class="add-account-subtext">点击添加账号</div>
                 `;
                 grid.appendChild(addCard);
             }
@@ -579,7 +579,7 @@
     }
     
     async function deleteAccount(accountId, phone) {
-        if (!confirm(`确定要删除账号 ${phone} 吗？此操作将删除该账号的所有监控器配置，不可恢复！`)) {
+        if (!confirm(`确定要删除账号 ${phone} 吗？此操作将删除该账号的所有规则配置，不可恢复！`)) {
             return;
         }
         

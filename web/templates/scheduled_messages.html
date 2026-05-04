@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}定时消息 - TG监控系统{% endblock %}
+{% block title %}计划任务{% endblock %}
 
-{% block page_title %}定时消息{% endblock %}
-{% block page_subtitle %}管理和配置定时发送的消息{% endblock %}
+{% block page_title %}计划任务{% endblock %}
+{% block page_subtitle %}配置定时发送的消息{% endblock %}
 
 
 {% block content %}
@@ -17,7 +17,7 @@
         </div>
         <div class="stat-value" id="total-messages-count">-</div>
         <div class="stat-footer">
-            所有定时消息
+            所有计划任务
         </div>
     </div>
     
@@ -52,11 +52,11 @@
 <div class="action-bar">
     <button class="btn btn-primary" onclick="showAddModal()">
         <i class="bi bi-plus-lg"></i>
-        添加定时消息
+        添加计划任务
     </button>
     
     <div>
-        <span class="text-muted">共 <span id="message-count">0</span> 条定时消息</span>
+        <span class="text-muted">共 <span id="message-count">0</span> 条计划任务</span>
     </div>
 </div>
 
@@ -68,11 +68,11 @@
         <div class="empty-icon">
             <i class="bi bi-calendar-x"></i>
         </div>
-        <div class="empty-title">暂无定时消息</div>
-        <div class="empty-description">点击上方按钮添加您的第一条定时消息</div>
+        <div class="empty-title">暂无计划任务</div>
+        <div class="empty-description">点击上方按钮添加您的第一条计划任务</div>
         <button class="btn btn-primary" onclick="showAddModal()">
             <i class="bi bi-plus-lg"></i>
-            添加定时消息
+            添加计划任务
         </button>
     </div>
 </div>
@@ -80,7 +80,7 @@
 <div class="modal" id="messageModal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 class="modal-title" id="modalTitle">添加定时消息</h3>
+            <h3 class="modal-title" id="modalTitle">添加计划任务</h3>
             <button class="modal-close" onclick="closeModal()">
                 <i class="bi bi-x"></i>
             </button>
@@ -115,9 +115,9 @@
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">目标群组/频道 ID</label>
-                    <input type="text" class="form-input" id="target-channel" placeholder="输入群组或频道ID（如：-1001234567890）" required>
-                    <small class="text-muted">请输入完整的群组或频道ID，可通过@userinfobot获取</small>
+                    <label class="form-label">目标 ID</label>
+                    <input type="text" class="form-input" id="target-channel" placeholder="输入群组或目标ID（如：-1001234567890）" required>
+                    <small class="text-muted">请输入完整的群组或目标ID，可通过@userinfobot获取</small>
                 </div>
                 
                 <div class="form-group">
@@ -432,7 +432,7 @@
             
             renderMessages();
         } catch (error) {
-            console.error('加载定时消息失败:', error);
+            console.error('加载计划任务失败:', error);
         }
     }
     
@@ -490,7 +490,7 @@
             <div class="message-card">
                 <div class="message-card-header">
                     <div>
-                        <div class="message-card-title">定时消息 #${msg.job_id || msg.id}</div>
+                        <div class="message-card-title">计划任务 #${msg.job_id || msg.id}</div>
                         <div class="message-card-time">
                             <i class="bi bi-clock"></i> ${formatScheduleDisplay(msg)}
                         </div>
@@ -539,7 +539,7 @@
     
     function showAddModal() {
         editingId = null;
-        document.getElementById('modalTitle').textContent = '添加定时消息';
+        document.getElementById('modalTitle').textContent = '添加计划任务';
         document.getElementById('messageForm').reset();
         document.getElementById('messageModal').classList.add('show');
     }
@@ -547,12 +547,12 @@
     function editMessage(id) {
         const msg = messages.find(m => (m.job_id || m.id) === id);
         if (!msg) {
-            console.error('未找到指定的定时消息:', id);
+            console.error('未找到指定的计划任务:', id);
             return;
         }
         
         editingId = id;
-        document.getElementById('modalTitle').textContent = '编辑定时消息';
+        document.getElementById('modalTitle').textContent = '编辑计划任务';
         document.getElementById('account-selector').value = msg.account_id || '';
         
         if (msg.use_ai) {
@@ -654,7 +654,7 @@
             max_executions: maxExecutions
         };
         
-        console.log('保存定时消息，数据:', formData);
+        console.log('保存计划任务，数据:', formData);
         
         try {
             const url = editingId ? `/api/scheduled-messages/${editingId}` : '/api/scheduled-messages';
@@ -670,7 +670,7 @@
             
             if (response.ok) {
                 closeModal();
-                showNotification('定时消息保存成功', 'success');
+                showNotification('计划任务保存成功', 'success');
                 await loadMessages();
             } else {
                 const errorData = await response.json().catch(() => ({}));
@@ -690,17 +690,17 @@
             return;
         }
         
-        if (!confirm('确定要删除这条定时消息吗？')) return;
+        if (!confirm('确定要删除这条计划任务吗？')) return;
         
         try {
-            console.log('删除定时消息，ID:', id);
+            console.log('删除计划任务，ID:', id);
             const response = await fetch(`/api/scheduled-messages/${encodeURIComponent(id)}`, {
                 method: 'DELETE'
             });
             
             if (response.ok) {
                 await loadMessages();
-                showNotification('定时消息删除成功', 'success');
+                showNotification('计划任务删除成功', 'success');
             } else {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.message || '删除失败');
@@ -724,7 +724,7 @@
         
         const msg = messages.find(m => (m.job_id || m.id) === id);
         if (!msg) {
-            console.error('未找到指定的定时消息:', id);
+            console.error('未找到指定的计划任务:', id);
             return;
         }
         
@@ -750,7 +750,7 @@
                 updateStatistics();
                 
                 await loadMessages();
-                showNotification(`定时消息已${newStatus ? '启动' : '暂停'}`, 'success');
+                showNotification(`计划任务已${newStatus ? '启动' : '暂停'}`, 'success');
             } else {
                 throw new Error('状态更新失败');
             }
@@ -763,34 +763,42 @@
     function viewMessageDetails(id) {
         const msg = messages.find(m => (m.job_id || m.id) === id);
         if (!msg) {
-            console.error('未找到指定的定时消息:', id);
+            console.error('未找到指定的计划任务:', id);
             return;
         }
         
+        const row = (label, value, wide = false) => `
+            <div class="config-row ${wide ? 'config-row-wide' : ''}">
+                <span class="config-row-label">${label}</span>
+                <span class="config-row-value">${esc(value)}</span>
+            </div>
+        `;
         const modal = document.createElement('div');
         modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
         
         modal.innerHTML = `
-            <div class="max-h-[80vh] w-full max-w-2xl overflow-auto rounded bg-white p-6">
-                <div class="mb-5 flex items-center justify-between border-b border-slate-200 pb-3">
-                    <h3 class="text-lg font-semibold">定时消息详情</h3>
+            <div class="max-h-[80vh] w-full max-w-2xl overflow-auto rounded bg-white">
+                <div class="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+                    <h3 class="text-lg font-semibold">计划任务详情</h3>
                     <button onclick="this.parentElement.parentElement.parentElement.remove()" 
                             class="rounded p-2 text-slate-500 hover:bg-slate-100">
                         <i class="bi bi-x-lg"></i>
                     </button>
                 </div>
-                <div class="space-y-2 rounded bg-slate-50 p-4 text-sm">
-                    <p><strong>消息ID:</strong> ${msg.job_id || msg.id}</p>
-                    <p><strong>状态:</strong> ${msg.active !== false ? '运行中' : '已暂停'}</p>
-                    <p><strong>账号:</strong> ${msg.account_id || '未设置'}</p>
-                    <p><strong>目标频道/群组:</strong> ${msg.channel_id || '未设置'}</p>
-                    <p><strong>调度表达式:</strong> ${msg.schedule || '未设置'}</p>
-                    <p><strong>消息类型:</strong> ${msg.use_ai ? 'AI生成' : '固定文本'}</p>
-                    ${msg.use_ai ? `<p><strong>AI提示词:</strong> ${msg.ai_prompt || '无'}</p>` : `<p><strong>消息内容:</strong> ${msg.message || '无'}</p>`}
-                    <p><strong>随机延时:</strong> ${msg.random_delay || 0} 秒</p>
-                    <p><strong>发送后删除:</strong> ${msg.delete_after_send ? '是' : '否'}</p>
-                    <p><strong>最大执行次数:</strong> ${msg.max_executions || '无限制'}</p>
-                    <p><strong>已执行次数:</strong> ${msg.execution_count || 0}</p>
+                <div class="config-modal-body">
+                    <div class="config-summary">
+                        ${row('消息ID', msg.job_id || msg.id, true)}
+                        ${row('状态', msg.active !== false ? '运行中' : '已暂停')}
+                        ${row('账号', msg.account_id || '未设置')}
+                        ${row('目标', msg.channel_id || '未设置', true)}
+                        ${row('调度表达式', msg.schedule || '未设置', true)}
+                        ${row('消息类型', msg.use_ai ? 'AI生成' : '固定文本')}
+                        ${row('随机延时', `${msg.random_delay || 0} 秒`)}
+                        ${row('发送后删除', msg.delete_after_send ? '是' : '否')}
+                        ${row('最大执行次数', msg.max_executions || '无限制')}
+                        ${row('已执行次数', msg.execution_count || 0)}
+                        ${msg.use_ai ? row('AI提示词', msg.ai_prompt || '无', true) : row('消息内容', msg.message || '无', true)}
+                    </div>
                 </div>
             </div>
         `;

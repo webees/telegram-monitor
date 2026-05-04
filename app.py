@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Telegram监控系统 - Web应用启动器
-提供现代化的Web界面管理监控系统
+工作台 - Web应用启动器
+提供轻量化 Web 入口
 """
 
 import asyncio
@@ -53,7 +53,7 @@ class TelegramMonitorWebApp:
             return False
         
         if not self.config.is_telegram_configured():
-            self.logger.warning("Telegram API未配置")
+            self.logger.warning("接口未配置")
             return False
         
         self.logger.info("配置检查通过")
@@ -118,15 +118,15 @@ class TelegramMonitorWebApp:
             self.logger.info("正在启动Web服务器...")
             self.logger.info("="*60)
             self.logger.info(f"🌐 Web界面地址: http://{self.host}:{self.port}")
-            self.logger.info(f"📊 监控仪表板: http://{self.host}:{self.port}/")
-            self.logger.info(f"⚙️  配置向导: http://{self.host}:{self.port}/wizard")
+            self.logger.info(f"📊 仪表板: http://{self.host}:{self.port}/")
+            self.logger.info(f"⚙️  新建规则: http://{self.host}:{self.port}/wizard")
             self.logger.info(f"📚 API文档: http://{self.host}:{self.port}/docs")
             
             if self.config:
                 config_status = self.config.get_status()
                 self.logger.info("")
                 self.logger.info("📋 功能状态:")
-                self.logger.info(f"   Telegram: {'✅ 已配置' if config_status['telegram_configured'] else '❌ 未配置'}")
+                self.logger.info(f"   接口: {'✅ 已配置' if config_status['telegram_configured'] else '❌ 未配置'}")
                 self.logger.info(f"   AI监控:   {'✅ 可用' if config_status['openai_configured'] else '⚠️  不可用'}")
                 self.logger.info(f"   邮件通知: {'✅ 可用' if config_status['email_configured'] else '⚠️  不可用'}")
             
@@ -145,9 +145,9 @@ def check_config_only():
         print("✅ 配置模块加载成功")
         
         if config.is_telegram_configured():
-            print("✅ Telegram API 已配置")
+            print("✅ 接口 已配置")
         else:
-            print("❌ Telegram API 未配置")
+            print("❌ 接口 未配置")
             
         if config.is_openai_configured():
             print("✅ OpenAI API 已配置")
@@ -194,7 +194,7 @@ def check_imports_only():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Telegram监控系统 Web界面")
+    parser = argparse.ArgumentParser(description="工作台 Web界面")
     parser.add_argument("--host", help="绑定主机地址")
     parser.add_argument("--port", type=int, help="绑定端口")
     parser.add_argument("--public", action="store_true", help="允许外部访问 (绑定到 0.0.0.0)")

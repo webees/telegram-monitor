@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}配置管理 - TG监控系统{% endblock %}
+{% block title %}配置{% endblock %}
 
-{% block page_title %}配置管理{% endblock %}
-{% block page_subtitle %}导入、导出和管理系统配置{% endblock %}
+{% block page_title %}配置{% endblock %}
+{% block page_subtitle %}导入、导出和工作台配置{% endblock %}
 
 
 {% block content %}
 <div class="stats-row">
     <div class="stat-item">
         <div class="stat-value" id="monitor-count">-</div>
-        <div class="stat-label">监控器数量</div>
+        <div class="stat-label">规则数量</div>
     </div>
     <div class="stat-item">
         <div class="stat-value" id="account-count">-</div>
@@ -178,7 +178,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `tg_monitor_config_${new Date().getTime()}.json`;
+            a.download = `system_config_${new Date().getTime()}.json`;
             a.click();
             URL.revokeObjectURL(url);
             
@@ -259,7 +259,7 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `tg_monitor_config_${new Date().getTime()}.json`;
+        a.download = `system_config_${new Date().getTime()}.json`;
         a.click();
         URL.revokeObjectURL(url);
     }
